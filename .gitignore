@@ -1,0 +1,33 @@
+# Sorties generees par la simulation (les exports ne sont pas versionnes)
+/outputs/**
+!/outputs/.gitkeep
+
+# Pickles / archives intermediaires
+*.pkl
+*.pickle
+
+# Donnees d'entree volumineuses (~4.6 Go : CSV de reference, archives de pickles, docs).
+# Les donnees ne sont pas versionnees ; voir le README pour l'arborescence attendue.
+/inputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
