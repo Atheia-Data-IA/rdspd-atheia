@@ -107,8 +107,10 @@ def assign_random_years(data_final: pd.DataFrame, year_weights: pd.DataFrame) ->
 def destandarization(df: pd.DataFrame, variables, input_data: pd.DataFrame, random_seed: int = 42) -> pd.DataFrame:
     """De-standardise les variables via moyenne/ecart-type annuels (cas particulier des charges).
 
-    On conserve la boucle ligne a ligne et la graine interne du notebook pour preserver
-    l'ordre exact des tirages aleatoires.
+    Optimisation (neutre) : la boucle ligne a ligne du notebook a ete vectorisee par colonne.
+    Les seuls tirages aleatoires (les ``alpha`` par annee) restent effectues *avant* la boucle,
+    dans le meme ordre ; le corps de la boucle est un calcul deterministe (aucun RNG). Le
+    resultat et la position du flux RNG sont donc bit-a-bit identiques.
     """
     np.random.seed(random_seed)
 
@@ -117,18 +119,18 @@ def destandarization(df: pd.DataFrame, variables, input_data: pd.DataFrame, rand
 
     alpha_lookup = {year: np.random.uniform(0.2, 0.35) for year in df["Year"].unique()}
 
-    for index, row in df.iterrows():
-        year = row["Year"]
-        for var in variables:
-            if var != "charges":
-                mean = mean_lookup[var].get(year, np.nan)
-                sd = sd_lookup[var].get(year, np.nan)
-            else:
-                alpha = alpha_lookup[year]
-                mean = alpha * mean_lookup["revenu"].get(year, np.nan)
-                sd = alpha * sd_lookup["revenu"].get(year, np.nan)
-            if not pd.isna(mean) and not pd.isna(sd):
-                df.at[index, var] = (row[var] * sd) + mean
+    year = df["Year"]
+    alpha = year.map(alpha_lookup)  # utilise uniquement pour 'charges'
+    for var in variables:
+        if var != "charges":
+            mean = year.map(mean_lookup[var])
+            sd = year.map(sd_lookup[var])
+        else:
+            mean = alpha * year.map(mean_lookup["revenu"])
+            sd = alpha * year.map(sd_lookup["revenu"])
+        # Conserve la valeur d'origine quand mean/sd est absent (equivalent au test pd.isna du notebook)
+        valid = mean.notna() & sd.notna()
+        df[var] = np.where(valid, df[var] * sd + mean, df[var])
 
     return df
 
@@ -203,9 +205,10 @@ def cat_variables(df: pd.DataFrame, values_age, tab_names: dict) -> pd.DataFrame
             n = len(df_1)
             categories = list(proba_data.columns)
             p = list(proba_data.loc[value])
-            # Un tirage par ligne, dans le meme ordre que le notebook (sequence RNG identique),
-            # mais affecte en une seule fois pour la performance.
-            draws = [np.random.choice(categories, 1, replace=True, p=p)[0] for _ in range(n)]
+            # Optimisation (neutre) : un tirage groupe au lieu de n tirages scalaires.
+            # np.random.choice(size=n, p=p) == n appels choice(1, p=p) : memes valeurs et
+            # meme position du flux RNG (verifie).
+            draws = np.random.choice(categories, size=n, replace=True, p=p)
             df_1[category] = pd.Series(draws, index=df_1.index, dtype=object)
             dataframe_list.append(df_1)
 
@@ -239,10 +242,27 @@ def generate_random_employment_years(age_cat, anc_emp_cat):
 
 
 def random_date(year: int) -> pd.Timestamp:
-    """Tire une date aleatoire (dernier jour d'un mois aleatoire) dans l'annee donnee."""
+    """Tire une date aleatoire (dernier jour d'un mois aleatoire) dans l'annee donnee.
+
+    Version scalaire d'origine, conservee pour reference ; la generation utilise la version
+    vectorisee :func:`random_month_ends` (resultat bit-a-bit identique).
+    """
     random_month = np.random.randint(1, 13)
     days_in_month = (datetime(year, random_month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
     return pd.to_datetime(days_in_month)
+
+
+def random_month_ends(years) -> np.ndarray:
+    """Version vectorisee de :func:`random_date` pour une serie d'annees.
+
+    Optimisation (neutre) : tire les mois en bloc (``np.random.randint(size=n)`` == n tirages
+    scalaires, verifie) puis construit les fins de mois vectoriellement. Meme sequence RNG,
+    memes horodatages que ``years.apply(random_date)``.
+    """
+    years = np.asarray(years)
+    months = np.random.randint(1, 13, size=len(years))
+    first = pd.to_datetime(pd.DataFrame({"year": years, "month": months, "day": 1}))
+    return (first + pd.offsets.MonthEnd(0)).to_numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -334,12 +354,12 @@ def run_granting(cfg: SimulationConfig, reporter: Reporter) -> pd.DataFrame:
         "plafond_credit", "Maturite", "banking_seniority",
     ]
 
-    # Dates aleatoires
-    data["Date"] = data["Annee"].apply(random_date)
+    # Dates aleatoires (vectorisees : meme sequence RNG que .apply(random_date))
+    data["Date"] = random_month_ends(data["Annee"])
     data["Month"] = data["Date"].dt.month
-    data["Birth_dt"] = (data["Annee"] - data["Age"]).apply(random_date)
-    data["Employment_dt"] = (data["Annee"] - data["anc_emp_continuous"]).apply(random_date)
-    data["Banking_dt"] = (data["Annee"] - data["banking_seniority"]).apply(random_date)
+    data["Birth_dt"] = random_month_ends(data["Annee"] - data["Age"])
+    data["Employment_dt"] = random_month_ends(data["Annee"] - data["anc_emp_continuous"])
+    data["Banking_dt"] = random_month_ends(data["Annee"] - data["banking_seniority"])
 
     # Export
     out = cfg.output_path("00_Granting.csv")
