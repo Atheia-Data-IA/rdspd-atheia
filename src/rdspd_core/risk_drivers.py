@@ -59,42 +59,35 @@ def increment_income_wages(
 ) -> pd.DataFrame:
     """Ajuste revenus et charges via les indices de prix et de revenu par CSP.
 
-    Le notebook renommait en place les colonnes des DataFrames globaux a chaque appel.
-    On travaille ici sur des copies locales (resultat numerique identique, sans effet de bord).
+    Optimisation (neutre) : les 4 merges par appel sont remplaces par des lookups
+    (``map`` / ``reindex`` sur des cles uniques). Les indices d'inflation (par annee) et de
+    revenu (par (annee, CSP)) etant uniques, ``merge how='left'`` et ``map`` renvoient
+    exactement les memes valeurs (NaN pour les cles absentes). Resultat byte-a-byte identique.
     """
-    # --- Inflation : colonnes positionnelles [annee, indice] ---
-    infl = inflation_df.copy()
-    infl.columns = ["_year", "_index"]
-
-    base_infl = infl.rename(columns={"_year": "Creation_yr", "_index": "Base_index"})
-    updt = pd.merge(updt, base_infl, on="Creation_yr", how="left").set_index(updt.index)
-
-    curr_infl = infl.rename(columns={"_year": "Annee", "_index": "Current_index"})
-    updt = pd.merge(updt, curr_infl, on="Annee", how="left").set_index(updt.index)
+    # --- Inflation : dictionnaire annee -> indice (colonnes positionnelles [annee, indice]) ---
+    infl_map = dict(zip(inflation_df.iloc[:, 0], inflation_df.iloc[:, 1], strict=True))
+    base_index = updt["Creation_yr"].map(infl_map)
+    current_index = updt["Annee"].map(infl_map)
 
     # Charges ajustees
-    updt["Charges_ajuste"] = updt["Charges"] * (updt["Current_index"] / updt["Base_index"])
+    updt["Charges_ajuste"] = updt["Charges"] * (current_index / base_index)
     updt["Charges_ajuste"] = (updt["Charges_ajuste"] * 100).astype(int)
 
-    # --- Revenu : colonnes positionnelles [annee, CSP, indice] ---
-    inc = income_df.copy()
-    inc.columns = ["_year", "CSP", "_income"]
-
-    base_inc = inc.rename(columns={"_year": "Creation_yr", "_income": "Base_income"})
-    updt = pd.merge(updt, base_inc, on=["Creation_yr", "CSP"], how="left").set_index(updt.index)
-
-    curr_inc = inc.rename(columns={"_year": "Annee", "_income": "Current_income"})
-    updt = pd.merge(updt, curr_inc, on=["Annee", "CSP"], how="left").set_index(updt.index)
+    # --- Revenu : indice par (annee, CSP) (colonnes positionnelles [annee, CSP, indice]) ---
+    inc_ser = income_df.set_index(list(income_df.columns[:2]))[income_df.columns[2]]
+    base_income = pd.Series(
+        inc_ser.reindex(pd.MultiIndex.from_arrays([updt["Creation_yr"], updt["CSP"]])).to_numpy(),
+        index=updt.index,
+    )
+    current_income = pd.Series(
+        inc_ser.reindex(pd.MultiIndex.from_arrays([updt["Annee"], updt["CSP"]])).to_numpy(),
+        index=updt.index,
+    )
 
     # Revenu ajuste (les chomeurs percoivent une allocation forfaitaire de 750).
-    # Affectation par colonne entiere via np.where (equivalent aux deux .loc du notebook,
-    # mais compatible avec la rigueur de typage de pandas >= 2.0).
-    ratio = (updt["Current_index"] / updt["Base_index"]) * (updt["Current_income"] / updt["Base_income"])
+    ratio = (current_index / base_index) * (current_income / base_income)
     updt["Revenu_ajuste"] = np.where(updt["Unemp"] == 1, 750 * ratio, updt["Revenu"] * ratio)
     updt["Revenu_ajuste"] = (updt["Revenu_ajuste"] * 100).astype(int)
-
-    # Nettoyage
-    updt = updt.drop(columns=["Base_index", "Current_index", "Base_income", "Current_income"])
 
     return updt
 
@@ -159,9 +152,14 @@ def increment_aggregates(master: pd.DataFrame, sub: pd.DataFrame) -> pd.DataFram
             "ResidualMaturity",
         ]
     ] = 0
-    # interest_rate_month est un taux (flottant) : pandas >= 2.0 refuse d'ecrire un flottant
-    # dans une colonne entiere lors du .update(), on l'initialise donc en flottant.
+    # interest_rate_month est un taux (flottant) : on l'initialise en flottant.
     master["interest_rate_month"] = 0.0
-    master.update(df)
+
+    # Optimisation (neutre) : remplace master.update(df). df provient d'une agregation (aucun NaN)
+    # et son index est inclus dans celui de master ; l'affectation colonne par colonne sur
+    # l'intersection reproduit exactement update() tout en preservant les dtypes.
+    idx = master.index.intersection(df.index)
+    for col in df.columns:
+        master.loc[idx, col] = df.loc[idx, col]
 
     return master

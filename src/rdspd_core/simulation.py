@@ -47,8 +47,12 @@ def build_date_list(cfg: SimulationConfig) -> pd.DatetimeIndex:
     return pd.date_range(start=cfg.start, end=cfg.end, freq=cfg.freq)
 
 
-def loop_snapshot(dt: pd.Timestamp, ctx: SimContext) -> None:
-    """Traite un snapshot mensuel et le serialise dans un pickle."""
+def loop_snapshot(dt: pd.Timestamp, ctx: SimContext, last_snap: pd.DataFrame | None) -> pd.DataFrame:
+    """Traite un snapshot mensuel, le serialise, et retourne le snapshot concatene.
+
+    ``last_snap`` est le snapshot du mois precedent (contrats + facilites concatenes), passe
+    en memoire par la boucle. Le pickle reste ecrit pour la consolidation finale.
+    """
     cfg = ctx.cfg
 
     # Contrats - initialisation ou increment
@@ -56,7 +60,7 @@ def loop_snapshot(dt: pd.Timestamp, ctx: SimContext) -> None:
         snpctr = init_snapshot_ctr(ctx.data, dt)  # nouveaux contrats octroyes
         ptffac = pd.DataFrame([])
     else:
-        ptfctr, newctr, ptffac = increment_snapshot_ctr(ctx.data, dt, cfg.snapshots_dir)
+        ptfctr, newctr, ptffac = increment_snapshot_ctr(ctx.data, dt, last_snap)
         ptfctr = update_snapshot_ctr(ptfctr, dt, ctx.macro, ctx.score_grid_rvv)
         snpctr = append_snapshot_ctr(ptfctr, newctr)
 
@@ -72,8 +76,11 @@ def loop_snapshot(dt: pd.Timestamp, ctx: SimContext) -> None:
     # Etats financiers et statut de cloture
     snpctr, snpfac = update_financials_all(snpctr, snpfac, cfg.fees)
 
-    # Serialisation
+    # Serialisation (conservee pour la consolidation finale et l'archive)
     snap_pickle_export(dt, snpctr, snpfac, cfg.snapshots_dir)
+
+    # Snapshot concatene passe au mois suivant (identique a une relecture du pickle)
+    return pd.concat([snpctr, snpfac], ignore_index=False)
 
 
 def run_simulation(
@@ -99,7 +106,8 @@ def run_simulation(
     )
 
     reporter.log(f"Plage : {date_list[0].date()} -> {date_list[-1].date()}  ({len(date_list)} snapshots)")
+    last_snap = None
     for dt in tqdm(date_list, desc="Processing IDs"):
-        loop_snapshot(dt, ctx)
+        last_snap = loop_snapshot(dt, ctx, last_snap)
 
     return ctx

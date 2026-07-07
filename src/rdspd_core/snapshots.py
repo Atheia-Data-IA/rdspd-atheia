@@ -226,11 +226,14 @@ def append_snapshot_ctr(updt: pd.DataFrame, new: pd.DataFrame, verbose: bool = F
 # Mise a jour des contrats
 # ---------------------------------------------------------------------------
 def increment_snapshot_ctr(
-    data: pd.DataFrame, dt: pd.Timestamp, snapshots_dir: str | Path, verbose: bool = False
+    data: pd.DataFrame, dt: pd.Timestamp, last: pd.DataFrame, verbose: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Charge le snapshot precedent, exclut les contrats clos/en defaut, separe ctr/fac."""
-    last = snap_pickle_import(dt - pd.offsets.MonthEnd(1), snapshots_dir)
+    """Exclut les contrats clos/en defaut du snapshot precedent et separe ctr/fac.
 
+    Optimisation (neutre) : le snapshot precedent ``last`` est passe en memoire par la boucle
+    au lieu d'etre relu depuis le pickle. Le pickle etant un round-trip sans perte, l'objet en
+    memoire est identique a sa relecture ; les pickles restent ecrits pour la consolidation finale.
+    """
     updt = last[last.Closed == 0]
     updt = updt[updt.Defaut == 0]
 
@@ -279,7 +282,13 @@ def update_default_ctr(
     master = increment_aggregates(master, sub)
     master = pdscore_rd(master)
     master = pdscore_apply(master, score_grid_pd, PD_KEYLIST, PD_VARLIST, rho=rho, aggregate=aggregate)
-    sub.update(master[["Retard", "Retard_cumule", "Defaut"]])
+    # Optimisation (neutre) : remplace sub.update(master[...]). Propage la valeur du contrat a
+    # chacune de ses facilites (index duplique) ; ``reindex`` diffuse par Contract_ID et l'on
+    # conserve la valeur d'origine la ou le contrat est absent (NaN), comme le fait update().
+    for col in ["Retard", "Retard_cumule", "Defaut"]:
+        src = master[col].reindex(sub.index)
+        updated = np.where(src.notna().to_numpy(), src.to_numpy(), sub[col].to_numpy())
+        sub[col] = updated.astype(sub[col].dtype)
     return master, sub
 
 
@@ -301,7 +310,10 @@ def update_financials_ctr(master: pd.DataFrame, sub: pd.DataFrame) -> pd.DataFra
         "Principal", "Outstanding", "montant_credit", "performing_claim",
     ]
     df = sub.groupby("Contract_ID")[varlist].sum()
-    master.update(df)
+    # Optimisation (neutre) : remplace master.update(df) (df sans NaN, index inclus dans master).
+    idx = master.index.intersection(df.index)
+    for col in varlist:
+        master.loc[idx, col] = df.loc[idx, col]
     master["Disposable"] = np.maximum(0, master["plafond_credit"] - master["Outstanding"])
     master = increment_closure_ctr(master)
     return master
@@ -316,7 +328,10 @@ def origin_fac(master: pd.DataFrame, sub: pd.DataFrame, verbose: bool = False) -
 
     if len(sub) > 0:
         _nbfac = sub.groupby("Contract_ID")["Facility_ID"].max()
-        df.update(_nbfac)
+        # Optimisation (neutre) : remplace df.update(_nbfac) (Serie sans NaN) par une affectation
+        # alignee sur l'intersection des index.
+        idx = df.index.intersection(_nbfac.index)
+        df.loc[idx, "Facility_ID"] = _nbfac.loc[idx]
 
     df["Facility_ID"] += 1
     df["Master"] = False
