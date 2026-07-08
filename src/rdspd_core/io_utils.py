@@ -59,3 +59,29 @@ def write_csv(df: pd.DataFrame, path: str | Path, **kwargs) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, encoding="utf-8", **kwargs)
     return path
+
+
+def export_frame(df: pd.DataFrame, path: str | Path, index: bool) -> Path:
+    """Exporte un DataFrame en Parquet ou CSV selon l'extension du chemin.
+
+    Le Parquet est nettement plus rapide a ecrire/relire et bien plus compact que le CSV,
+    tout en conservant les dtypes et l'index nativement. Le CSV reste disponible pour une
+    sortie texte lisible.
+
+    Note Parquet : certaines colonnes ``object`` sont mixtes (ex. ``dispo_ratio_bin`` vaut
+    l'entier 0 a l'initialisation puis des libelles de tranche comme ``'> 0.8'``). Le CSV
+    les ecrit indistinctement en texte ; pour Parquet (types homogenes requis) on convertit
+    donc les colonnes ``object`` en chaine nullable, ce qui reproduit la semantique texte du
+    CSV tout en preservant les valeurs manquantes.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix == ".parquet":
+        object_cols = df.select_dtypes(include="object").columns
+        if len(object_cols):
+            df = df.copy()
+            df[object_cols] = df[object_cols].astype("string")
+        df.to_parquet(path, index=index)
+    else:
+        df.to_csv(path, index=index, encoding="utf-8")
+    return path

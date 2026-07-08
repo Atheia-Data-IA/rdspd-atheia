@@ -57,12 +57,18 @@ class SimulationConfig:
     scorecard_pd: str = "PD02R3120"
     scorecard_rvv: str = "RVV00R0030"
 
+    # --- Format des exports finaux (RDSPD_Full, RDSPD_Perf_Dec) : "parquet" ou "csv" ---
+    export_format: str = "parquet"
+
     # --- Chemins ---------------------------------------------------------------
     project_root: Path = field(default_factory=Path.cwd)
     inputs_dir: Path | None = None     # defaut : <project_root>/inputs/<DEFAULT_INPUT_SUBDIR>
     outputs_dir: Path | None = None    # defaut : <project_root>/outputs
 
     def __post_init__(self) -> None:
+        self.export_format = self.export_format.lower()
+        if self.export_format not in ("parquet", "csv"):
+            raise ValueError(f"export_format doit etre 'parquet' ou 'csv', recu : {self.export_format!r}")
         self.project_root = Path(self.project_root)
         if self.inputs_dir is None:
             self.inputs_dir = self.project_root / "inputs" / DEFAULT_INPUT_SUBDIR
@@ -98,6 +104,11 @@ class SimulationConfig:
     def archive_path(self) -> Path:
         """Archive zip des pickles de snapshots."""
         return self.version_dir / "archive_pickle.zip"
+
+    @property
+    def export_ext(self) -> str:
+        """Extension de fichier des exports finaux selon ``export_format``."""
+        return "parquet" if self.export_format == "parquet" else "csv"
 
     # --- Helpers de chemins ----------------------------------------------------
     def input_path(self, filename: str) -> Path:

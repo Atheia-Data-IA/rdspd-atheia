@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 from rdspd_core.config import SimulationConfig
 from rdspd_core.io_utils import read_csv
 from rdspd_core.pipeline import run
@@ -16,7 +18,8 @@ PERF_DEC_NCOLS = 29
 GRANTING_NCOLS = 20
 
 
-def test_smoke_run_produces_expected_outputs(project_root, tmp_path):
+def test_smoke_run_parquet_default(project_root, tmp_path):
+    """Run par defaut : exports finaux en Parquet, plus de CompleteMaster&Fac."""
     cfg = SimulationConfig(
         project_root=project_root,
         outputs_dir=tmp_path,
@@ -27,32 +30,54 @@ def test_smoke_run_produces_expected_outputs(project_root, tmp_path):
         seed=42,
     )
     result = run(cfg)
+    assert result.export_format == "parquet"
 
     out = Path(result.output_dir)
     expected = [
-        "00_Granting.csv",
+        "00_Granting.csv",  # intermediaire relu -> reste CSV
         "ScoreGrid_RVV.csv",
         "ScoreGrid_PD.csv",
-        "RDSPD_CompleteMaster&Fac.csv",
-        f"RDSPD_Full_{cfg.version}.csv",
-        f"RDSPD_Perf_Dec_{cfg.version}.csv",
+        f"RDSPD_Full_{cfg.version}.parquet",
+        f"RDSPD_Perf_Dec_{cfg.version}.parquet",
         "archive_pickle.zip",
         "run.log",
     ]
     for name in expected:
         assert (out / name).exists(), f"export manquant : {name}"
 
-    # Les pickles intermediaires ont ete archives puis supprimes.
+    # Fichier redondant supprime.
+    assert not (out / "RDSPD_CompleteMaster&Fac.csv").exists()
+    # Pickles archives puis supprimes.
     assert not list((out / "snapshots").glob("*.pkl"))
+    # Controles + recap des temps ecrits.
+    assert (out / "controls" / "timings.csv").exists()
 
-    # Les controles ont ete ecrits.
-    assert (out / "controls").is_dir()
-    assert list((out / "controls").glob("*.csv"))
-
-    # Schemas attendus.
+    # Schemas attendus (Perf_Dec relu en Parquet).
     assert len(read_csv(out / "00_Granting.csv").columns) == GRANTING_NCOLS
-    assert len(read_csv(out / f"RDSPD_Perf_Dec_{cfg.version}.csv").columns) == PERF_DEC_NCOLS
+    assert len(pd.read_parquet(out / f"RDSPD_Perf_Dec_{cfg.version}.parquet").columns) == PERF_DEC_NCOLS
     assert result.n_rows_full > 0
+
+
+def test_smoke_run_csv_format(project_root, tmp_path):
+    """--exportformat csv : exports finaux en CSV avec le meme schema."""
+    cfg = SimulationConfig(
+        project_root=project_root,
+        outputs_dir=tmp_path,
+        version="SMOKE_CSV",
+        n_contracts=250,
+        start="2006-01-31",
+        end="2006-12-31",
+        seed=42,
+        export_format="csv",
+    )
+    result = run(cfg)
+    assert result.export_format == "csv"
+
+    out = Path(result.output_dir)
+    assert (out / f"RDSPD_Full_{cfg.version}.csv").exists()
+    assert (out / f"RDSPD_Perf_Dec_{cfg.version}.csv").exists()
+    assert not (out / f"RDSPD_Full_{cfg.version}.parquet").exists()
+    assert len(read_csv(out / f"RDSPD_Perf_Dec_{cfg.version}.csv").columns) == PERF_DEC_NCOLS
 
 
 def test_smoke_run_is_reproducible(project_root, tmp_path):

@@ -34,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--outputs-dir", type=Path, help="Repertoire des sorties.")
     p.add_argument("--scorecard-pd", help="Identifiant du scorecard PD (ex. PD02R3120).")
     p.add_argument("--scorecard-rvv", help="Identifiant du scorecard revolving (ex. RVV00R0030).")
+    p.add_argument(
+        "--exportformat",
+        choices=["parquet", "csv"],
+        help="Format des exports finaux (RDSPD_Full, RDSPD_Perf_Dec). Defaut : parquet.",
+    )
     return p
 
 
@@ -50,6 +55,7 @@ def _config_from_args(args: argparse.Namespace) -> SimulationConfig:
         "outputs_dir": args.outputs_dir,
         "scorecard_pd": args.scorecard_pd,
         "scorecard_rvv": args.scorecard_rvv,
+        "export_format": args.exportformat,
     }
     overrides = {k: v for k, v in overrides.items() if v is not None}
 

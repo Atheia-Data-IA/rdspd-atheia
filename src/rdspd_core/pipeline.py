@@ -17,7 +17,7 @@ import pandas as pd
 from . import controls
 from .config import SimulationConfig
 from .granting import run_granting
-from .io_utils import read_csv
+from .io_utils import export_frame, read_csv
 from .macro import load_macro
 from .reporting import Reporter
 from .scores import build_pd_grid, build_rvv_grid
@@ -43,12 +43,12 @@ class RunResult:
     granting_csv: str
     score_grid_pd_csv: str
     score_grid_rvv_csv: str
-    complete_csv: str
-    full_csv: str
-    perf_dec_csv: str
+    full_path: str         # RDSPD_Full (parquet ou csv selon export_format)
+    perf_dec_path: str     # RDSPD_Perf_Dec (parquet ou csv)
     archive_zip: str
     n_contracts: int
     n_rows_full: int
+    export_format: str     # "parquet" ou "csv"
     timings: dict          # duree (s) par grande etape
     total_seconds: float   # somme des durees chronometrees
 
@@ -108,8 +108,6 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
             data["Default12m"] = np.where(
                 (data.Date < data.Default_dt) & (data.Date + pd.DateOffset(months=12) >= data.Default_dt), 1, 0
             )
-            complete_csv = cfg.output_path("RDSPD_CompleteMaster&Fac.csv")
-            data.to_csv(complete_csv, encoding="utf-8")
             reporter.show_df(data.head(5), "complete_master_fac_head", title="Apercu master & facilites :")
 
         # 6) Controles post-simulation (grille relue depuis le CSV)
@@ -120,18 +118,21 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
             controls.control_p0p1p2_pdt(control_frame, grid, reporter)
             controls.control_pd12(control_frame, grid, reporter)
 
-        # 7) Exports finaux
+        # 7) Exports finaux (format configurable : parquet par defaut, ou csv)
         with reporter.timed("Exports finaux"):
-            full_csv = cfg.output_path(f"RDSPD_Full_{cfg.version}.csv")
-            data.to_csv(full_csv, index=True, encoding="utf-8")
+            reporter.log(f"Format d'export : {cfg.export_format}")
+            full_path = export_frame(
+                data, cfg.output_path(f"RDSPD_Full_{cfg.version}.{cfg.export_ext}"), index=True
+            )
             reporter.log(f"Obs Full RDS -  {len(data)}")
             reporter.log(f"    > Unique Contract_ID;  {data.Contract_ID.nunique()}")
 
             data_filtered = data.query("Master & Defaut==0 & Month==12")[PERF_DEC_COLUMNS]
             reporter.log(f"Obs Filtered -  {len(data_filtered)}")
             reporter.log(f"    > Unique Contract_ID;  {data_filtered.Contract_ID.nunique()}")
-            perf_dec_csv = cfg.output_path(f"RDSPD_Perf_Dec_{cfg.version}.csv")
-            data_filtered.to_csv(perf_dec_csv, index=False, encoding="utf-8")
+            perf_dec_path = export_frame(
+                data_filtered, cfg.output_path(f"RDSPD_Perf_Dec_{cfg.version}.{cfg.export_ext}"), index=False
+            )
 
         # 8) Archivage des pickles
         with reporter.timed("Archivage des pickles"):
@@ -150,12 +151,12 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
             granting_csv=str(cfg.output_path("00_Granting.csv")),
             score_grid_pd_csv=str(cfg.output_path("ScoreGrid_PD.csv")),
             score_grid_rvv_csv=str(cfg.output_path("ScoreGrid_RVV.csv")),
-            complete_csv=str(complete_csv),
-            full_csv=str(full_csv),
-            perf_dec_csv=str(perf_dec_csv),
+            full_path=str(full_path),
+            perf_dec_path=str(perf_dec_path),
             archive_zip=str(cfg.archive_path),
             n_contracts=cfg.n_contracts,
             n_rows_full=len(data),
+            export_format=cfg.export_format,
             timings=reporter.timings,
             total_seconds=sum(reporter.timings.values()),
         )

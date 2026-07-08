@@ -96,6 +96,7 @@ Options principales :
 | `--seed` | `42` | Graine aléatoire globale (reproductibilité) |
 | `--inputs-dir` / `--outputs-dir` | `inputs/...` / `outputs/` | Répertoires d'E/S |
 | `--scorecard-pd` / `--scorecard-rvv` | `PD02R3120` / `RVV00R0030` | Scorecards utilisées |
+| `--exportformat` | `parquet` | Format des exports finaux (`RDSPD_Full`, `RDSPD_Perf_Dec`) : `parquet` ou `csv` |
 
 ### Appel programmatique (futur usage API)
 
@@ -116,18 +117,23 @@ Toutes les sorties sont **affichées à l'exécution** *et* écrites dans
 
 ```
 outputs/<version>/
-    00_Granting.csv                      # portefeuille à l'octroi
-    ScoreGrid_RVV.csv                    # grille de score revolving
-    ScoreGrid_PD.csv                     # grille de score de défaut
-    RDSPD_CompleteMaster&Fac.csv         # tous les snapshots consolidés
-    RDSPD_Full_<version>.csv             # jeu complet final
-    RDSPD_Perf_Dec_<version>.csv         # snapshot performing de décembre
+    00_Granting.csv                      # portefeuille à l'octroi (interne, relu)
+    ScoreGrid_RVV.csv                    # grille de score revolving (interne, relu)
+    ScoreGrid_PD.csv                     # grille de score de défaut (interne, relu)
+    RDSPD_Full_<version>.parquet         # jeu complet final (ou .csv selon --exportformat)
+    RDSPD_Perf_Dec_<version>.parquet     # snapshot performing de décembre (ou .csv)
     archive_pickle.zip                   # archive des pickles mensuels
     run.log                              # journal d'exécution
     controls/                            # rapports de contrôle (un CSV par contrôle)
     controls/timings.csv                 # durée de chaque grande étape
     snapshots/                           # pickles mensuels (supprimés après archivage)
 ```
+
+> **Format des exports finaux** : `RDSPD_Full` et `RDSPD_Perf_Dec` sont écrits en **Parquet
+> par défaut** (beaucoup plus rapide à écrire/relire et plus compact) ; passer `--exportformat csv`
+> pour une sortie CSV texte (identique à l'ancien format). Les fichiers intermédiaires
+> (`00_Granting.csv`, grilles de score) restent en CSV car ils sont relus par le pipeline.
+> L'ancien fichier `RDSPD_CompleteMaster&Fac.csv` — qui doublonnait `RDSPD_Full` — n'est plus produit.
 
 Les **contrôles de validation** (écart de covariance, distributions, distributions
 conditionnelles, mapping drivers/score, intervalles de confiance P0-P2 / PDt / PD12)
