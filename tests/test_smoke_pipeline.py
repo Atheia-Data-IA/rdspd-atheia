@@ -39,15 +39,15 @@ def test_smoke_run_parquet_default(project_root, tmp_path):
         "ScoreGrid_PD.csv",
         f"RDSPD_Full_{cfg.version}.parquet",
         f"RDSPD_Perf_Dec_{cfg.version}.parquet",
-        "archive_pickle.zip",
         "run.log",
     ]
     for name in expected:
         assert (out / name).exists(), f"export manquant : {name}"
 
-    # Fichier redondant supprime.
+    # Fichiers redondants supprimes : le doublon CompleteMaster&Fac et l'archive de pickles.
     assert not (out / "RDSPD_CompleteMaster&Fac.csv").exists()
-    # Pickles archives puis supprimes.
+    assert not (out / "archive_pickle.zip").exists()
+    # Pickles mensuels supprimes apres consolidation.
     assert not list((out / "snapshots").glob("*.pkl"))
     # Controles + recap des temps ecrits.
     assert (out / "controls" / "timings.csv").exists()

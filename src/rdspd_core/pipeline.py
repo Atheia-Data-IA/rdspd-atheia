@@ -22,7 +22,7 @@ from .macro import load_macro
 from .reporting import Reporter
 from .scores import build_pd_grid, build_rvv_grid
 from .simulation import run_simulation
-from .snapshots import init_granting, init_grid, pickle_mass_import, pickle_mass_zip
+from .snapshots import init_granting, init_grid, pickle_mass_import, tools_del_pkl
 
 # Colonnes exportees dans le snapshot performing de decembre (cf. notebook cellule finale).
 PERF_DEC_COLUMNS = [
@@ -45,7 +45,6 @@ class RunResult:
     score_grid_rvv_csv: str
     full_path: str         # RDSPD_Full (parquet ou csv selon export_format)
     perf_dec_path: str     # RDSPD_Perf_Dec (parquet ou csv)
-    archive_zip: str
     n_contracts: int
     n_rows_full: int
     export_format: str     # "parquet" ou "csv"
@@ -134,10 +133,10 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
                 data_filtered, cfg.output_path(f"RDSPD_Perf_Dec_{cfg.version}.{cfg.export_ext}"), index=False
             )
 
-        # 8) Archivage des pickles
-        with reporter.timed("Archivage des pickles"):
-            pickle_mass_zip(cfg.snapshots_dir, cfg.archive_path)
-            reporter.log(f"Archive des snapshots : {cfg.archive_path}")
+        # 8) Nettoyage : suppression des pickles mensuels (deja consolides dans RDSPD_Full)
+        with reporter.timed("Nettoyage des pickles"):
+            tools_del_pkl(cfg.snapshots_dir, verbose=False)
+            reporter.log("Pickles mensuels supprimes (donnees consolidees dans RDSPD_Full)")
 
         # Recapitulatif des temps d'execution
         reporter.timing_summary()
@@ -153,7 +152,6 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
             score_grid_rvv_csv=str(cfg.output_path("ScoreGrid_RVV.csv")),
             full_path=str(full_path),
             perf_dec_path=str(perf_dec_path),
-            archive_zip=str(cfg.archive_path),
             n_contracts=cfg.n_contracts,
             n_rows_full=len(data),
             export_format=cfg.export_format,

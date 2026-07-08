@@ -101,11 +101,6 @@ class SimulationConfig:
         return self.version_dir / "run.log"
 
     @property
-    def archive_path(self) -> Path:
-        """Archive zip des pickles de snapshots."""
-        return self.version_dir / "archive_pickle.zip"
-
-    @property
     def export_ext(self) -> str:
         """Extension de fichier des exports finaux selon ``export_format``."""
         return "parquet" if self.export_format == "parquet" else "csv"

@@ -22,7 +22,7 @@ développés ici.*
 | **Scorecards** | Construction des grilles de score **RVV** (tirage revolving) et **PD** (défaut) par produit cartésien des modalités ; optimisation de la décomposition `PDt = P0 × P1 × P2`. | `ScoreGrid_RVV.csv`, `ScoreGrid_PD.csv` |
 | **Simulation** | Boucle mensuelle (2006→2023) : mise à jour des drivers de risque, tirage du revolving, impayés et défaut conditionnels à P0/P1/P2 et à l'autocorrélation des actifs ρ, échéancier de recouvrement, clôture. Un pickle par mois. | `snapshots/*.pkl` |
 | **Consolidation & contrôles** | Concaténation des snapshots, flag de défaut à 12 mois, contrôles de validation (covariance, distributions, intervalles de confiance sur P0-P2 / PDt / PD12). | `controls/` (rapports) |
-| **Exports** | Jeu complet et snapshot performing de décembre. Archive des pickles. | `RDSPD_Full_<version>.parquet`, `RDSPD_Perf_Dec_<version>.parquet` (ou `.csv`), `archive_pickle.zip` |
+| **Exports** | Jeu complet et snapshot performing de décembre. Les pickles mensuels, déjà consolidés dans `RDSPD_Full`, sont ensuite supprimés. | `RDSPD_Full_<version>.parquet`, `RDSPD_Perf_Dec_<version>.parquet` (ou `.csv`) |
 
 ---
 
@@ -123,11 +123,10 @@ outputs/<version>/
     ScoreGrid_PD.csv                     # grille de score de défaut (interne, relu)
     RDSPD_Full_<version>.parquet         # jeu complet final (ou .csv selon --exportformat)
     RDSPD_Perf_Dec_<version>.parquet     # snapshot performing de décembre (ou .csv)
-    archive_pickle.zip                   # archive des pickles mensuels
     run.log                              # journal d'exécution
     controls/                            # rapports de contrôle (un CSV par contrôle)
     controls/timings.csv                 # durée de chaque grande étape
-    snapshots/                           # pickles mensuels (supprimés après archivage)
+    snapshots/                           # pickles mensuels (supprimés après consolidation)
 ```
 
 > **Format des exports finaux** : `RDSPD_Full` et `RDSPD_Perf_Dec` sont écrits en **Parquet
