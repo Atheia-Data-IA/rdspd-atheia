@@ -21,8 +21,8 @@ développés ici.*
 | **Macro** | Import des facteurs macro-économiques : chômage et durées, inflation, indices de revenu par CSP, taux d'intérêt revolving, facteur macro agrégé. | — |
 | **Scorecards** | Construction des grilles de score **RVV** (tirage revolving) et **PD** (défaut) par produit cartésien des modalités ; optimisation de la décomposition `PDt = P0 × P1 × P2`. | `ScoreGrid_RVV.csv`, `ScoreGrid_PD.csv` |
 | **Simulation** | Boucle mensuelle (2006→2023) : mise à jour des drivers de risque, tirage du revolving, impayés et défaut conditionnels à P0/P1/P2 et à l'autocorrélation des actifs ρ, échéancier de recouvrement, clôture. Un pickle par mois. | `snapshots/*.pkl` |
-| **Consolidation & contrôles** | Concaténation des snapshots, flag de défaut à 12 mois, contrôles de validation (covariance, distributions, intervalles de confiance sur P0-P2 / PDt / PD12). | `RDSPD_CompleteMaster&Fac.csv` |
-| **Exports** | Jeu complet et snapshot performing de décembre. Archive des pickles. | `RDSPD_Full_<version>.csv`, `RDSPD_Perf_Dec_<version>.csv`, `archive_pickle.zip` |
+| **Consolidation & contrôles** | Concaténation des snapshots, flag de défaut à 12 mois, contrôles de validation (covariance, distributions, intervalles de confiance sur P0-P2 / PDt / PD12). | `controls/` (rapports) |
+| **Exports** | Jeu complet et snapshot performing de décembre. Archive des pickles. | `RDSPD_Full_<version>.parquet`, `RDSPD_Perf_Dec_<version>.parquet` (ou `.csv`), `archive_pickle.zip` |
 
 ---
 
@@ -40,7 +40,8 @@ pip install -e .                # installation du package + dépendances
 pip install -e ".[dev]"         # + outils de développement (pytest, ruff)
 ```
 
-Dépendances runtime : `numpy`, `pandas`, `scipy`, `python-dateutil`, `tqdm`.
+Dépendances runtime : `numpy`, `pandas`, `scipy`, `python-dateutil`, `tqdm`, `pyarrow`
+(ce dernier pour les exports Parquet).
 
 ---
 
@@ -74,7 +75,7 @@ Le répertoire d'entrée peut être changé avec `--inputs-dir`.
 ## 4. Exécution
 
 ```bash
-# Run complet : 50 000 contrats, snapshots 2006→2023 (long, plusieurs dizaines de minutes)
+# Run complet : 50 000 contrats, snapshots 2006→2023 (quelques minutes)
 rdspd-simulate
 
 # Run rapide (smoke test) : N réduit, plage de dates courte
@@ -105,7 +106,7 @@ from rdspd_core.config import SimulationConfig
 from rdspd_core.pipeline import run
 
 result = run(SimulationConfig(n_contracts=5000, end="2010-12-31"))
-print(result.full_csv, result.n_rows_full)
+print(result.full_path, result.n_rows_full, result.total_seconds)
 ```
 
 ---
@@ -201,12 +202,16 @@ src/rdspd_core/
 
 ## 9. Notes & limites
 
-- **Performance** : le run complet (50 000 contrats × 216 mois) prend plusieurs dizaines de
-  minutes (boucle mensuelle + E/S pickle). Utiliser `--smoke` ou réduire `--n-contracts` /
+- **Performance** : le run complet (50 000 contrats × 216 mois) prend quelques minutes,
+  dominé par la boucle mensuelle. Optimisations byte-à-byte neutres déjà en place : octroi
+  vectorisé (~×17), boucle allégée (merges → lookups, suppression de relectures pickle),
+  exports finaux en Parquet (~×9 en écriture) et suppression du doublon d'export. Chaque
+  grande étape est chronométrée (cf. §5). Utiliser `--smoke` ou réduire `--n-contracts` /
   la plage de dates pour des essais rapides.
 - **Fidélité** : la logique métier et l'ordre des tirages aléatoires sont préservés à
-  l'identique du notebook ; seules des améliorations sans effet sur les résultats ont été
-  apportées (suppression d'effets de bord, lecture d'encodage, ordre déterministe des
-  classes d'âge, noms de pickles compatibles Windows).
+  l'identique du notebook ; toutes les optimisations de vitesse ont été **vérifiées
+  byte-à-byte** (mêmes exports). Les autres améliorations sans effet sur les résultats :
+  suppression d'effets de bord, lecture d'encodage, ordre déterministe des classes d'âge,
+  noms de pickles compatibles Windows.
 - **API / Frontend** : hors périmètre de ce dépôt. La fonction `pipeline.run(config)` est le
   point d'entrée prévu pour une future couche API.
