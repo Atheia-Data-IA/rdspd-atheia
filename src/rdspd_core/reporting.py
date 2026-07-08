@@ -12,9 +12,25 @@ ce qui satisfait l'exigence « ... mais figurer egalement dans le dossier output
 
 from __future__ import annotations
 
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
+
+
+def format_duration(seconds: float) -> str:
+    """Formate une duree en texte lisible (ASCII uniquement pour la console Windows)."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f} ms"
+    if seconds < 60:
+        return f"{seconds:.2f} s"
+    if seconds < 3600:
+        minutes, sec = divmod(seconds, 60)
+        return f"{int(minutes)} min {sec:04.1f} s"
+    hours, rem = divmod(seconds, 3600)
+    minutes, sec = divmod(rem, 60)
+    return f"{int(hours)} h {int(minutes):02d} min {int(sec):02d} s"
 
 
 class Reporter:
@@ -27,6 +43,8 @@ class Reporter:
         self.controls_dir.mkdir(parents=True, exist_ok=True)
         # Reinitialise le log a chaque run.
         self._log_handle = self.log_path.open("w", encoding="utf-8")
+        # Chronometrage des grandes etapes : liste de (label, duree_en_secondes).
+        self._timings: list[tuple[str, float]] = []
 
     # -- gestion du cycle de vie ------------------------------------------------
     def close(self) -> None:
@@ -53,6 +71,43 @@ class Reporter:
         self.log(bar)
         self.log(f"  {title}")
         self.log(bar)
+
+    # -- chronometrage des etapes ----------------------------------------------
+    @contextmanager
+    def timed(self, label: str):
+        """Chronometre une grande etape et affiche sa duree a la fin.
+
+        Utilisation : ``with reporter.timed("Octroi"): ...``. La duree est affichee
+        dans le terminal (et le log), puis conservee pour le recapitulatif final.
+        """
+        t0 = time.perf_counter()
+        try:
+            yield
+        finally:
+            dt = time.perf_counter() - t0
+            self._timings.append((label, dt))
+            self.log(f"  [temps] {label} : {format_duration(dt)}")
+
+    @property
+    def timings(self) -> dict[str, float]:
+        """Durees mesurees par etape (en secondes)."""
+        return dict(self._timings)
+
+    def timing_summary(self) -> None:
+        """Affiche et enregistre le recapitulatif des temps d'execution par etape."""
+        if not self._timings:
+            return
+        total = sum(d for _, d in self._timings)
+        self.section("Temps d'execution par etape")
+        width = max(len(label) for label, _ in self._timings)
+        for label, dt in self._timings:
+            pct = 100 * dt / total if total else 0.0
+            self.log(f"  {label:<{width}}  {format_duration(dt):>14}  ({pct:5.1f} %)")
+        self.log(f"  {'TOTAL':<{width}}  {format_duration(total):>14}  (100.0 %)")
+        # Enregistrement durable dans controls/timings.csv
+        pd.DataFrame(self._timings, columns=["etape", "duree_s"]).to_csv(
+            self.controls_dir / "timings.csv", index=False, encoding="utf-8"
+        )
 
     # -- tableaux (DataFrame / Series) -----------------------------------------
     def show_df(

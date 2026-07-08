@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .config import SimulationConfig, smoke_config
 from .pipeline import run
+from .reporting import format_duration
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Run termine : {result.version}")
     print(f"  Exports    : {result.output_dir}")
     print(f"  Lignes RDS Full : {result.n_rows_full}")
+    print(f"  Temps total : {format_duration(result.total_seconds)}")
     return 0
 
 

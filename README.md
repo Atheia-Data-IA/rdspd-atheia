@@ -125,12 +125,22 @@ outputs/<version>/
     archive_pickle.zip                   # archive des pickles mensuels
     run.log                              # journal d'exécution
     controls/                            # rapports de contrôle (un CSV par contrôle)
+    controls/timings.csv                 # durée de chaque grande étape
     snapshots/                           # pickles mensuels (supprimés après archivage)
 ```
 
 Les **contrôles de validation** (écart de covariance, distributions, distributions
 conditionnelles, mapping drivers/score, intervalles de confiance P0-P2 / PDt / PD12)
 sont imprimés sur la console et enregistrés dans `controls/`.
+
+### Suivi du temps d'exécution
+
+Chaque grande étape (octroi, grilles de score, initialisation, simulation mensuelle,
+consolidation, contrôles, exports, archivage) est **chronométrée**. La durée s'affiche
+dans le terminal au fil de l'exécution (`[temps] <étape> : <durée>`), puis un **récapitulatif**
+par étape (avec pourcentages et total) est imprimé à la fin et enregistré dans
+`controls/timings.csv`. Les durées sont aussi accessibles par programme via
+`RunResult.timings` et `RunResult.total_seconds` (utile pour une future API).
 
 ---
 
