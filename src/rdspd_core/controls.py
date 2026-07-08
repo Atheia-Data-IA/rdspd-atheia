@@ -201,18 +201,36 @@ def control_p0p1p2_pdt(control: pd.DataFrame, grid: pd.DataFrame, reporter: Repo
             reporter.show_df(df_show, f"ctrl_pdt_{group}_failures")
 
 
-def _calculate_custom_pd12(group: pd.DataFrame) -> pd.DataFrame:
-    """PD12 = 1 - produit(1 - PDt) sur la fenetre glissante de 12 mois."""
-    group = group.sort_values("Date")
-    pdts = group["PDt"].values
-    n = len(pdts)
-    pd12_results = np.zeros(n)
-    for i in range(n):
-        window_end = min(i + 12, n)
-        window_vals = [pdts[j] for j in range(i, window_end)]
-        pd12_results[i] = 1 - np.prod([1 - v for v in window_vals])
-    group["PD12"] = pd12_results
-    return group
+def _add_custom_pd12(control: pd.DataFrame) -> pd.DataFrame:
+    """Ajoute la colonne ``PD12`` = 1 - produit(1 - PDt) sur la fenetre glissante de 12 mois.
+
+    Optimisation (neutre) : remplace la boucle Python par contrat (``groupby.apply``) par un
+    produit vectorise de tableaux decales. Pour chaque decalage ``k`` de 0 a 11, on multiplie
+    ``(1 - PDt[i+k])`` dans le meme ordre gauche-a-droite que ``np.prod``, en neutralisant
+    (facteur ``1.0``) les positions hors fenetre ou debordant sur le contrat suivant. La
+    multiplication par ``1.0`` etant exacte et l'ordre des facteurs conserve, le resultat est
+    bit-a-bit identique a la boucle d'origine (verifie).
+
+    ``control`` doit etre trie par (Contract_ID, Date).
+    """
+    control = control.copy()
+    cid = control["Contract_ID"].to_numpy()
+    onemp = 1 - control["PDt"].to_numpy()  # (1 - PDt), facteur k=0
+    n = len(onemp)
+
+    prod = onemp.copy()
+    for k in range(1, 12):
+        if k >= n:
+            break  # tous les decalages suivants sont hors bornes -> facteur 1.0
+        m = n - k
+        # facteur[i] = (1 - PDt[i+k]) si i+k appartient au meme contrat, sinon 1.0
+        same = cid[:m] == cid[k:]
+        factor = np.ones(n)
+        factor[:m] = np.where(same, onemp[k:], 1.0)
+        prod = prod * factor
+
+    control["PD12"] = 1 - prod
+    return control
 
 
 def control_pd12(control: pd.DataFrame, grid: pd.DataFrame, reporter: Reporter) -> None:
@@ -222,7 +240,7 @@ def control_pd12(control: pd.DataFrame, grid: pd.DataFrame, reporter: Reporter) 
     freq_theo = grid[["ScorePD", "PD12"]].drop_duplicates()
 
     control = control.sort_values(["Contract_ID", "Date"])
-    control = control.groupby("Contract_ID", group_keys=False).apply(_calculate_custom_pd12)
+    control = _add_custom_pd12(control)
 
     control["D12"] = (
         (control.Defaut == 0) & (control.Outstanding > 0) & (control.Month == 12) & (control.ResidualMaturity >= 12)
