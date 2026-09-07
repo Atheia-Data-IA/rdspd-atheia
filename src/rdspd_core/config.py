@@ -11,6 +11,7 @@ sans modifier le code.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -59,6 +60,11 @@ class SimulationConfig:
 
     # --- Format des exports finaux (RDSPD_Full, RDSPD_Perf_Dec) : "parquet" ou "csv" ---
     export_format: str = "parquet"
+
+    # --- Purge du repertoire outputs/<version>/ avant le run ---
+    # Evite que des artefacts d'un run precedent (ancien format, fichiers supprimes depuis)
+    # cohabitent avec les sorties courantes. Mettre a False pour conserver l'existant.
+    clean_outputs: bool = True
 
     # --- Chemins ---------------------------------------------------------------
     project_root: Path = field(default_factory=Path.cwd)
@@ -113,6 +119,39 @@ class SimulationConfig:
     def output_path(self, filename: str) -> Path:
         """Chemin complet d'un fichier de sortie (dans ``outputs/<version>/``)."""
         return self.version_dir / filename
+
+    def clean_version_dir(self) -> bool:
+        """Supprime le repertoire ``outputs/<version>/`` avant un nouveau run.
+
+        Garantit que les sorties d'un run precedent (ancien format d'export, fichiers qui ne
+        sont plus produits) ne cohabitent pas avec les sorties courantes.
+
+        Operation destructive : plusieurs garde-fous s'assurent que seul un sous-repertoire
+        de ``outputs_dir`` peut etre supprime.
+
+        Returns
+        -------
+        bool
+            ``True`` si un repertoire existant a ete supprime, ``False`` sinon.
+        """
+        version_dir = self.version_dir.resolve()
+        outputs_dir = self.outputs_dir.resolve()
+
+        # Garde-fou 1 : le repertoire de version doit etre strictement contenu dans outputs_dir
+        # (protege contre une version vide, "." ou contenant "..").
+        if version_dir == outputs_dir or outputs_dir not in version_dir.parents:
+            raise ValueError(
+                f"Refus de purger {version_dir} : doit etre un sous-repertoire de {outputs_dir}"
+            )
+        # Garde-fou 2 : ne jamais suivre un lien symbolique.
+        if version_dir.is_symlink():
+            raise ValueError(f"Refus de purger {version_dir} : lien symbolique")
+
+        if not version_dir.is_dir():
+            return False
+
+        shutil.rmtree(version_dir)
+        return True
 
     def ensure_dirs(self) -> None:
         """Cree les repertoires de sortie necessaires au run."""

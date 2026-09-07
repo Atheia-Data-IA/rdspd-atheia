@@ -39,6 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["parquet", "csv"],
         help="Format des exports finaux (RDSPD_Full, RDSPD_Perf_Dec). Defaut : parquet.",
     )
+    p.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Ne pas purger outputs/<version>/ avant le run (conserve les fichiers existants).",
+    )
     return p
 
 
@@ -56,6 +61,8 @@ def _config_from_args(args: argparse.Namespace) -> SimulationConfig:
         "scorecard_pd": args.scorecard_pd,
         "scorecard_rvv": args.scorecard_rvv,
         "export_format": args.exportformat,
+        # --no-clean desactive la purge ; sinon on laisse le defaut (True).
+        "clean_outputs": False if args.no_clean else None,
     }
     overrides = {k: v for k, v in overrides.items() if v is not None}
 

@@ -61,6 +61,8 @@ def _set_seeds(seed: int) -> None:
 def run(cfg: SimulationConfig | None = None) -> RunResult:
     """Execute la simulation complete et retourne un resume des exports produits."""
     cfg = cfg or SimulationConfig()
+    # Purge des sorties du run precedent (avant creation des repertoires et du log).
+    cleaned = cfg.clean_version_dir() if cfg.clean_outputs else False
     cfg.ensure_dirs()
 
     # Affichage complet des DataFrames + suppression des avertissements (comme le notebook).
@@ -74,6 +76,8 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
         reporter.log(f"Contrats : {cfg.n_contracts} | rho : {cfg.rho} | graine : {cfg.seed}")
         reporter.log(f"Entrees : {cfg.inputs_dir}")
         reporter.log(f"Sorties : {cfg.version_dir}")
+        if cleaned:
+            reporter.log("   (repertoire de sortie purge ; utiliser --no-clean pour conserver l'existant)")
 
         # 1) Octroi des contrats -> 00_Granting.csv
         with reporter.timed("Octroi des contrats"):

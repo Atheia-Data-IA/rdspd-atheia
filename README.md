@@ -98,6 +98,7 @@ Options principales :
 | `--inputs-dir` / `--outputs-dir` | `inputs/...` / `outputs/` | Répertoires d'E/S |
 | `--scorecard-pd` / `--scorecard-rvv` | `PD02R3120` / `RVV00R0030` | Scorecards utilisées |
 | `--exportformat` | `parquet` | Format des exports finaux (`RDSPD_Full`, `RDSPD_Perf_Dec`) : `parquet` ou `csv` |
+| `--no-clean` | — | Ne pas purger `outputs/<version>/` avant le run (conserve les fichiers existants) |
 
 ### Appel programmatique (futur usage API)
 
@@ -114,7 +115,9 @@ print(result.full_path, result.n_rows_full, result.total_seconds)
 ## 5. Sorties
 
 Toutes les sorties sont **affichées à l'exécution** *et* écrites dans
-`outputs/<version>/` :
+`outputs/<version>/`. Ce répertoire est **purgé au début de chaque run** afin que des artefacts
+d'une exécution précédente (ancien format d'export, fichiers qui ne sont plus produits) ne
+cohabitent pas avec les résultats courants ; utiliser `--no-clean` pour conserver l'existant.
 
 ```
 outputs/<version>/

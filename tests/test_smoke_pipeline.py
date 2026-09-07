@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from rdspd_core.config import SimulationConfig
 from rdspd_core.io_utils import read_csv
@@ -78,6 +79,52 @@ def test_smoke_run_csv_format(project_root, tmp_path):
     assert (out / f"RDSPD_Perf_Dec_{cfg.version}.csv").exists()
     assert not (out / f"RDSPD_Full_{cfg.version}.parquet").exists()
     assert len(read_csv(out / f"RDSPD_Perf_Dec_{cfg.version}.csv").columns) == PERF_DEC_NCOLS
+
+
+def _small_cfg(project_root, outputs_dir, version, **kw):
+    return SimulationConfig(
+        project_root=project_root,
+        outputs_dir=outputs_dir,
+        version=version,
+        n_contracts=200,
+        start="2006-01-31",
+        end="2006-03-31",
+        seed=42,
+        **kw,
+    )
+
+
+def test_clean_outputs_removes_stale_files(project_root, tmp_path):
+    """Par defaut, outputs/<version>/ est purge : les artefacts d'un run precedent disparaissent."""
+    cfg = _small_cfg(project_root, tmp_path, "CLEAN")
+    cfg.version_dir.mkdir(parents=True, exist_ok=True)
+    stale = cfg.version_dir / "RDSPD_CompleteMaster&Fac.csv"  # fichier d'un ancien format
+    stale.write_text("obsolete", encoding="utf-8")
+
+    result = run(cfg)
+
+    assert not stale.exists(), "le fichier perime aurait du etre supprime"
+    assert (Path(result.output_dir) / "00_Granting.csv").exists()
+
+
+def test_no_clean_preserves_existing_files(project_root, tmp_path):
+    """Avec clean_outputs=False (--no-clean), l'existant est conserve."""
+    cfg = _small_cfg(project_root, tmp_path, "KEEP", clean_outputs=False)
+    cfg.version_dir.mkdir(parents=True, exist_ok=True)
+    stale = cfg.version_dir / "vieux_fichier.csv"
+    stale.write_text("conserve", encoding="utf-8")
+
+    run(cfg)
+
+    assert stale.exists(), "le fichier existant aurait du etre conserve"
+    assert stale.read_text(encoding="utf-8") == "conserve"
+
+
+def test_clean_version_dir_refuse_hors_outputs(project_root, tmp_path):
+    """Garde-fou : refuse de purger si version_dir n'est pas un sous-repertoire de outputs_dir."""
+    cfg = SimulationConfig(project_root=project_root, outputs_dir=tmp_path, version=".")
+    with pytest.raises(ValueError, match="Refus de purger"):
+        cfg.clean_version_dir()
 
 
 def test_smoke_run_is_reproducible(project_root, tmp_path):
