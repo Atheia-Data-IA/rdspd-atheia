@@ -167,7 +167,7 @@ src/rdspd_core/
     config.py        # SimulationConfig: all parameters, no hard-coded paths
     io_utils.py      # encoding-robust CSV reading, Parquet/CSV export
     reporting.py     # console output + files + per-stage timing
-    randnonnormal/   # vendored non-normal generator (Pearson system)
+    randnonnormal/   # non-normal sampling (Pearson distribution system)
     granting.py      # contract origination
     macro.py         # macro-economic factors
     risk_drivers.py  # monthly risk-driver updates
@@ -217,5 +217,6 @@ Each stage is timed, so regressions are visible immediately (`controls/timings.c
 
 Released under the [MIT License](LICENSE).
 
-This package vendors a third-party non-normal random generator; see [NOTICE](NOTICE) for
-attribution and the modifications made.
+The non-normal sampling module implements published mathematics (Pearson distribution
+system; Heinrich 2004 for the type IV sampler; Vale & Maurelli 1983 for the
+independent-generator construction) — see [NOTICE](NOTICE) for the full references.

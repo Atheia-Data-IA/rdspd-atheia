@@ -1,14 +1,15 @@
-"""Generateur de donnees non normales (systeme de Pearson).
+"""Non-normal random data generation through the Pearson distribution system.
 
-Package ``RandNonNormal`` vendorise depuis le projet d'origine (auteur : nadahannad,
-2023). Il fournit la fonction :func:`IG` (Independent Generator) utilisee pour generer
-des donnees multivariees respectant une matrice de covariance, une asymetrie (skewness)
-et un aplatissement (kurtosis) cibles. Le comportement numerique est strictement
-identique a la version d'origine ; seuls les imports ont ete remontes en tete de module.
+Exposes :func:`IG` (Independent Generator), which draws multivariate data matching a
+target covariance matrix together with per-variable skewness and excess kurtosis.
+
+The implementation follows published mathematics (Pearson system; Heinrich 2004 for
+the type IV sampler; Vale & Maurelli 1983 for the independent-generator construction).
+See the NOTICE file at the repository root for the full references.
 """
 
 from __future__ import annotations
 
-from .generator import IG
+from .generator import IG, fit_pearson_from_moments
 
-__all__ = ["IG"]
+__all__ = ["IG", "fit_pearson_from_moments"]

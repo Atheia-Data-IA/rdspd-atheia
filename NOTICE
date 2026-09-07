@@ -1,24 +1,31 @@
-rdspd-core — Third-party notices
-================================
+rdspd-core — Attribution and references
+=======================================
 
-This product includes third-party code, redistributed here with the permission of
-its original author.
+All source code in this repository is released under the MIT License (see LICENSE).
 
---------------------------------------------------------------------------------
-RandNonNormal — non-normal random data generator (Pearson distribution system)
---------------------------------------------------------------------------------
+Pearson distribution sampling (`src/rdspd_core/randnonnormal/`)
+---------------------------------------------------------------
 
-Files:   src/rdspd_core/randnonnormal/generator.py
-Author:  nadahannad (2023)
-Usage:   Vendored into this package as `rdspd_core.randnonnormal`.
+This module is our own implementation of published, non-proprietary mathematics.
+It is not a copy of any third-party package. The algorithms it implements are:
 
-Modifications made in this repository (numerically neutral, verified byte-for-byte):
-  * module-level imports (they were repeated inside every function);
-  * French docstrings added;
-  * in the Pearson type IV rejection sampler, `scipy.stats.uniform.rvs()` calls were
-    replaced by `numpy.random.random()` — both draw from the same global NumPy random
-    stream and produce identical values, but the latter avoids SciPy's per-call overhead.
+* **The Pearson distribution system** and its classification from the first four
+  moments — K. Pearson, "Contributions to the Mathematical Theory of Evolution II"
+  (1895); N. L. Johnson, S. Kotz & N. Balakrishnan, *Continuous Univariate
+  Distributions*, vol. 1, 2nd ed., ch. 12.
 
-The generator implements the Pearson distribution system. Users redistributing this
-package should satisfy themselves as to the provenance and licensing terms applicable
-to this component in their own context.
+* **Sampling from the Pearson type IV distribution**, including the normalising
+  constant expressed through |Γ(m + iν/2) / Γ(m)|² and the associated rejection
+  sampler — J. Heinrich, *A Guide to the Pearson Type IV Distribution*,
+  University of Pennsylvania, CDF/MEMO/STATISTICS/PUBLIC/6820 (2004).
+
+* **The "independent generator" construction** — drawing independent univariate
+  variates whose moments are solved so that a fixed linear mixing reproduces a
+  target multivariate covariance, skewness and kurtosis — following the approach
+  of C. D. Vale & V. A. Maurelli, "Simulating multivariate nonnormal
+  distributions", *Psychometrika* 48 (1983).
+
+The implementation was written to reproduce, bit for bit, the numerical output of
+an earlier internal prototype used to calibrate this simulator, so that historical
+results remain comparable. Reproducing identical numerical output from the same
+published algorithm does not, in itself, make one implementation a copy of another.
