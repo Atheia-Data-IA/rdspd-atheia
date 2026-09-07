@@ -207,7 +207,9 @@ src/rdspd_core/
 - **Performance** : le run complet (50 000 contrats × 216 mois) prend quelques minutes,
   dominé par la boucle mensuelle. Optimisations byte-à-byte neutres déjà en place : octroi
   vectorisé (~×17), boucle allégée (merges → lookups, suppression de relectures pickle),
-  exports finaux en Parquet (~×9 en écriture) et suppression du doublon d'export. Chaque
+  contrôle PD12 vectorisé (~×46), stockage des chaînes en `object` plutôt qu'Arrow
+  (`future.infer_string=False`, ~25 % sur la boucle avec pandas ≥ 3.0), exports finaux en
+  Parquet (~×9 en écriture) et suppression des exports redondants. Chaque
   grande étape est chronométrée (cf. §5). Utiliser `--smoke` ou réduire `--n-contracts` /
   la plage de dates pour des essais rapides.
 - **Fidélité** : la logique métier et l'ordre des tirages aléatoires sont préservés à

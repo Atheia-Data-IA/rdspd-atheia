@@ -52,6 +52,24 @@ class RunResult:
     total_seconds: float   # somme des durees chronometrees
 
 
+def _configure_pandas() -> None:
+    """Configure pandas pour le run (options globales au processus).
+
+    - Affichage complet des DataFrames (comme le notebook).
+    - ``future.infer_string=False`` : depuis pandas 3.0 les colonnes chaine sont inferees en
+      dtype Arrow (``str``). Or la boucle mensuelle enchaine slicing / take / concat / merge sur
+      ces colonnes (variables categorielles et cles de merge des grilles de score) 216 fois : les
+      tableaux Arrow y sont nettement plus lents que les tableaux numpy ``object``, pour un
+      resultat strictement identique. On revient donc au stockage ``object``.
+      Neutralite verifiee byte-a-byte sur l'ensemble des exports et des controles.
+    """
+    pd.options.display.max_columns = None
+    try:
+        pd.set_option("future.infer_string", False)
+    except pd.errors.OptionError:  # option absente (pandas < 2.1, ou retiree ulterieurement)
+        pass
+
+
 def _set_seeds(seed: int) -> None:
     """Fixe les graines aleatoires globales pour rendre le run reproductible."""
     np.random.seed(seed)
@@ -65,8 +83,8 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
     cleaned = cfg.clean_version_dir() if cfg.clean_outputs else False
     cfg.ensure_dirs()
 
-    # Affichage complet des DataFrames + suppression des avertissements (comme le notebook).
-    pd.options.display.max_columns = None
+    # Options pandas (affichage, stockage des chaines) + suppression des avertissements.
+    _configure_pandas()
     warnings.filterwarnings("ignore")
 
     _set_seeds(cfg.seed)
