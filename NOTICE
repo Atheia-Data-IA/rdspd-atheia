@@ -1,9 +1,9 @@
-rdspd-core — Attribution and references
+rdspd-atheia — Attribution and references
 =======================================
 
 All source code in this repository is released under the MIT License (see LICENSE).
 
-Pearson distribution sampling (`src/rdspd_core/randnonnormal/`)
+Pearson distribution sampling (`src/rdspd_atheia/randnonnormal/`)
 ---------------------------------------------------------------
 
 This module is our own implementation of published, non-proprietary mathematics.

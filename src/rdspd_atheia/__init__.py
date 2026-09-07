@@ -1,4 +1,4 @@
-"""rdspd_core - Simulateur de portefeuille de credit synthetique RDS PD.
+"""rdspd_atheia - Simulateur de portefeuille de credit synthetique RDS PD.
 
 Ce package est le refactoring du notebook ``SimulationRDSPD_V1.3`` en code Python
 modulaire et executable. La logique metier (generation des contrats, scores,
@@ -6,8 +6,8 @@ simulation mensuelle) est decouplee des entrees/sorties et de l'interface en lig
 de commande, afin de pouvoir etre appelee ulterieurement par une API (FastAPI).
 
 Point d'entree principal :
-    from rdspd_core.config import SimulationConfig
-    from rdspd_core.pipeline import run
+    from rdspd_atheia.config import SimulationConfig
+    from rdspd_atheia.pipeline import run
     run(SimulationConfig())
 """
 

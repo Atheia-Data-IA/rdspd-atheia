@@ -45,7 +45,7 @@ def read_csv(path: str | Path, **kwargs) -> pd.DataFrame:
             continue
     # latin-1 ne devrait jamais echouer ; ce point n'est atteint qu'en cas de probleme reel.
     raise UnicodeDecodeError(  # pragma: no cover
-        "rdspd_core",
+        "rdspd_atheia",
         b"",
         0,
         1,

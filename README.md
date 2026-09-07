@@ -1,10 +1,10 @@
-# rdspd-core — Synthetic Retail Credit Portfolio Simulator
+# rdspd-atheia — Synthetic Retail Credit Portfolio Simulator
 
-[![CI](https://github.com/Atheia-Data-IA/rdb-atheia/actions/workflows/ci.yml/badge.svg)](https://github.com/Atheia-Data-IA/rdb-atheia/actions/workflows/ci.yml)
+[![CI](https://github.com/Atheia-Data-IA/rdspd-atheia/actions/workflows/ci.yml/badge.svg)](https://github.com/Atheia-Data-IA/rdspd-atheia/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
-`rdspd-core` generates a **synthetic portfolio of revolving consumer credit contracts** and
+`rdspd-atheia` generates a **synthetic portfolio of revolving consumer credit contracts** and
 simulates its life month by month over ~18 years: risk-driver updates, revolving drawdowns,
 arrears and defaults, repayment schedules, and contract closure. It applies **behavioural
 scorecards** (drawdown propensity and probability of default) and ships a suite of
@@ -39,8 +39,8 @@ a notebook, or a future API layer.
 Requires **Python ≥ 3.10**.
 
 ```bash
-git clone https://github.com/Atheia-Data-IA/rdb-atheia.git
-cd rdb-atheia
+git clone https://github.com/Atheia-Data-IA/rdspd-atheia.git
+cd rdspd-atheia
 python -m venv .venv && .venv\Scripts\activate      # Windows
 # python -m venv .venv && source .venv/bin/activate # Linux / macOS
 
@@ -114,8 +114,8 @@ rdspd-simulate --exportformat csv                     # CSV instead of Parquet
 ### Programmatic use (API-ready)
 
 ```python
-from rdspd_core.config import SimulationConfig
-from rdspd_core.pipeline import run
+from rdspd_atheia.config import SimulationConfig
+from rdspd_atheia.pipeline import run
 
 result = run(SimulationConfig(n_contracts=5000, end="2010-12-31"))
 print(result.full_path, result.n_rows_full, result.total_seconds)
@@ -163,7 +163,7 @@ outputs/<version>/
 ## Architecture
 
 ```
-src/rdspd_core/
+src/rdspd_atheia/
     config.py        # SimulationConfig: all parameters, no hard-coded paths
     io_utils.py      # encoding-robust CSV reading, Parquet/CSV export
     reporting.py     # console output + files + per-stage timing

@@ -11,9 +11,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from rdspd_core.config import SimulationConfig
-from rdspd_core.io_utils import read_csv
-from rdspd_core.pipeline import run
+from rdspd_atheia.config import SimulationConfig
+from rdspd_atheia.io_utils import read_csv
+from rdspd_atheia.pipeline import run
 
 PERF_DEC_NCOLS = 29
 GRANTING_NCOLS = 20

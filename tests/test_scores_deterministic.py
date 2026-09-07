@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from rdspd_core.config import SimulationConfig
-from rdspd_core.io_utils import read_csv
-from rdspd_core.scores import build_pd_grid, build_rvv_grid
+from rdspd_atheia.config import SimulationConfig
+from rdspd_atheia.io_utils import read_csv
+from rdspd_atheia.scores import build_pd_grid, build_rvv_grid
 
 RVV_KEYS = ["dec_flag", "dispo_ratio_bin", "draw_senior_bin"]
 PD_KEYS = ["rd_Age_AncEmp", "rd_DebtRatioW", "situation_habitat", "rd_UsingRate", "rd_CSP", "rd_BankingSen"]

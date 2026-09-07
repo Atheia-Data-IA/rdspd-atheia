@@ -6,7 +6,7 @@ un mauvais decodage casserait silencieusement le scoring.
 
 from __future__ import annotations
 
-from rdspd_core.io_utils import read_csv
+from rdspd_atheia.io_utils import read_csv
 
 
 def test_csp_labels_decoded(project_root):
