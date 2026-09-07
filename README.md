@@ -1,6 +1,6 @@
 # rdspd-core — Synthetic Retail Credit Portfolio Simulator
 
-[![CI](https://github.com/Atheia/rdspd-core/actions/workflows/ci.yml/badge.svg)](https://github.com/Atheia/rdspd-core/actions/workflows/ci.yml)
+[![CI](https://github.com/Atheia-Data-IA/rdb-atheia/actions/workflows/ci.yml/badge.svg)](https://github.com/Atheia-Data-IA/rdb-atheia/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
@@ -39,8 +39,8 @@ a notebook, or a future API layer.
 Requires **Python ≥ 3.10**.
 
 ```bash
-git clone https://github.com/Atheia/rdspd-core.git
-cd rdspd-core
+git clone https://github.com/Atheia-Data-IA/rdb-atheia.git
+cd rdb-atheia
 python -m venv .venv && .venv\Scripts\activate      # Windows
 # python -m venv .venv && source .venv/bin/activate # Linux / macOS
 
