@@ -10,7 +10,7 @@ from rdspd_core.io_utils import read_csv
 
 
 def test_csp_labels_decoded(project_root):
-    base = project_root / "inputs" / "01_Sujets_Internes" / "00_RDS_PD" / "Google_Sheets"
+    base = project_root / "inputs" / "parameters"
     df = read_csv(base / "RDSPD_ProbaCSP_Conso.csv")
     cols = set(df.columns)
     assert "Indépendants" in cols
@@ -19,7 +19,7 @@ def test_csp_labels_decoded(project_root):
 
 
 def test_housing_labels_decoded(project_root):
-    base = project_root / "inputs" / "01_Sujets_Internes" / "00_RDS_PD" / "Google_Sheets"
+    base = project_root / "inputs" / "parameters"
     df = read_csv(base / "RDSPD_ProbaHousing_Conso.csv")
     cols = set(df.columns)
     assert "Propriétaire" in cols
@@ -27,7 +27,7 @@ def test_housing_labels_decoded(project_root):
 
 
 def test_income_index_csp_decoded(project_root):
-    base = project_root / "inputs" / "01_Sujets_Internes" / "00_RDS_PD" / "Google_Sheets"
+    base = project_root / "inputs" / "parameters"
     df = read_csv(base / "RDSPD_IncomeIndex.csv")
     cols = set(df.columns)
     assert "Employés" in cols

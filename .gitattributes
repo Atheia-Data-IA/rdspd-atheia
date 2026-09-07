@@ -1,0 +1,12 @@
+# Normalise les fins de ligne du code source (LF dans le depot).
+*.py     text eol=lf
+*.toml   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+
+# Donnees d'entree : preserver les octets a l'identique sur toutes les plateformes.
+# Ces fichiers sont lus tels quels (certains sont encodes en cp1252) et servent de
+# reference a une comparaison bit-a-bit dans les tests : aucune conversion de fin de
+# ligne ne doit leur etre appliquee.
+inputs/** -text

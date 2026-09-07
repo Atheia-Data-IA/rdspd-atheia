@@ -1,0 +1,7 @@
+Variable,age,nombre_enfants,revenu,maturite,charges,montant_credit
+age,1,0.8,0.6,-0.2,0.6,0.1
+nombre_enfants,0.8,1,0.3,0.0,0.5,0.2
+revenu,0.6,0.3,1,0.4,0.8,0.6
+maturite,-0.2,0.0,0.4,1,0.1,0.7
+charges,0.6,0.5,0.8,0.1,1,0.5
+montant_credit,0.1,0.2,0.6,0.7,0.5,1

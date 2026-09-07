@@ -1,106 +1,117 @@
-# rdspd-core — Simulateur de portefeuille de crédit synthétique (RDS PD)
+# rdspd-core — Synthetic Retail Credit Portfolio Simulator
 
-`rdspd-core` est le refactoring en package Python du notebook **`SimulationRDSPD_V1.3`**.
-Il génère un portefeuille synthétique de crédits revolving à la consommation, le fait
-évoluer mois par mois sur une longue période, applique des **scorecards** de tirage
-(revolving) et de **probabilité de défaut** (PD), puis produit les exports et les
-contrôles de validation du modèle.
+[![CI](https://github.com/Atheia/rdspd-core/actions/workflows/ci.yml/badge.svg)](https://github.com/Atheia/rdspd-core/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
-Le code est organisé pour que la **logique métier** soit totalement découplée des
-entrées/sorties et de l'interface en ligne de commande, afin de pouvoir être appelée
-ultérieurement par une **API (FastAPI)**. *La partie API et le frontend ne sont pas
-développés ici.*
+`rdspd-core` generates a **synthetic portfolio of revolving consumer credit contracts** and
+simulates its life month by month over ~18 years: risk-driver updates, revolving drawdowns,
+arrears and defaults, repayment schedules, and contract closure. It applies **behavioural
+scorecards** (drawdown propensity and probability of default) and ships a suite of
+**statistical validation controls** with confidence intervals.
 
----
+It is a production-grade port of a research notebook into a modular, tested Python package.
+The business logic is fully decoupled from I/O and the CLI, so it can be driven from a script,
+a notebook, or a future API layer.
 
-## 1. Ce que fait la simulation
-
-| Étape | Description | Sortie principale |
-|------|-------------|-------------------|
-| **Octroi** | Génération de données emprunteurs corrélées non normales (générateur `IG`, système de Pearson), affectation des cohortes/années, dé-standardisation, variables catégorielles (CSP, habitat, situation familiale, ancienneté), dates. | `00_Granting.csv` |
-| **Macro** | Import des facteurs macro-économiques : chômage et durées, inflation, indices de revenu par CSP, taux d'intérêt revolving, facteur macro agrégé. | — |
-| **Scorecards** | Construction des grilles de score **RVV** (tirage revolving) et **PD** (défaut) par produit cartésien des modalités ; optimisation de la décomposition `PDt = P0 × P1 × P2`. | `ScoreGrid_RVV.csv`, `ScoreGrid_PD.csv` |
-| **Simulation** | Boucle mensuelle (2006→2023) : mise à jour des drivers de risque, tirage du revolving, impayés et défaut conditionnels à P0/P1/P2 et à l'autocorrélation des actifs ρ, échéancier de recouvrement, clôture. Un pickle par mois. | `snapshots/*.pkl` |
-| **Consolidation & contrôles** | Concaténation des snapshots, flag de défaut à 12 mois, contrôles de validation (covariance, distributions, intervalles de confiance sur P0-P2 / PDt / PD12). | `controls/` (rapports) |
-| **Exports** | Jeu complet et snapshot performing de décembre. Les pickles mensuels, déjà consolidés dans `RDSPD_Full`, sont ensuite supprimés. | `RDSPD_Full_<version>.parquet`, `RDSPD_Perf_Dec_<version>.parquet` (ou `.csv`) |
+> **Why it exists.** Realistic retail-credit datasets are rarely shareable. This simulator
+> produces a fully synthetic but economically coherent portfolio — calibrated on macro series
+> (unemployment, inflation, income indices, interest rates) — suitable for model development,
+> backtesting, IFRS 9 / Basel experimentation, and teaching.
 
 ---
 
-## 2. Installation
+## Highlights
 
-Prérequis : **Python ≥ 3.10**.
+- **Reproducible** — a global seed makes every run deterministic.
+- **Validated** — the deterministic scorecard grids are reproduced **bit-for-bit** against
+  reference files, and the model ships built-in validation controls (covariance, conditional
+  distributions, 95% confidence intervals on P0/P1/P2, PDt and 12-month PD).
+- **Observable** — every major stage is timed and reported in the terminal and on disk.
+- **Fast** — heavily vectorised: the full pipeline runs in seconds on a reduced portfolio and
+  a few minutes at 50 000 contracts × 216 monthly snapshots.
+- **Ready to run** — model parameters are included; `pip install -e .` then one command.
+
+---
+
+## Quick start
+
+Requires **Python ≥ 3.10**.
 
 ```bash
-# Depuis la racine du projet (rdspd-core/)
-python -m venv .venv
-.venv\Scripts\activate          # Windows (PowerShell : .venv\Scripts\Activate.ps1)
-# source .venv/bin/activate     # Linux / macOS
+git clone https://github.com/Atheia/rdspd-core.git
+cd rdspd-core
+python -m venv .venv && .venv\Scripts\activate      # Windows
+# python -m venv .venv && source .venv/bin/activate # Linux / macOS
 
-pip install -e .                # installation du package + dépendances
-pip install -e ".[dev]"         # + outils de développement (pytest, ruff)
-```
-
-Dépendances runtime : `numpy`, `pandas`, `scipy`, `python-dateutil`, `tqdm`, `pyarrow`
-(ce dernier pour les exports Parquet).
-
----
-
-## 3. Données d'entrée
-
-Les fichiers d'entrée sont lus **localement** depuis le dossier `inputs/` (et non plus
-depuis Google Drive comme dans le notebook). L'arborescence attendue par défaut est :
-
-```
-inputs/01_Sujets_Internes/00_RDS_PD/Google_Sheets/
-    RDSPD_CovarMatrix_Conso.csv        RDSPD_Quantile_Conso.csv
-    RDSPD_Cohort_Revolving.csv         RDSPD_Unemployment.csv
-    RDSPD_Unemployment_Duration.csv    RDSPD_Inflation.csv
-    RDSPD_IncomeIndex.csv              RDSPD_InterestRate_Revolving.csv
-    RDSPD_AggMacro.csv                 RDSPD_ProbaHousing_Conso.csv
-    RDSPD_ProbaFamily_Conso.csv        RDSPD_ProbaCSP_Conso.csv
-    RDSPD_ProbaEmploy_Conso.csv
-    RDSPD_PartialScore_PD02R3120.csv   RDSPD_ScoreParams_PD02R3120.csv
-    RDSPD_PartialScore_RVV00R0030.csv  RDSPD_ScoreParams_RVV00R0030.csv
-```
-
-> **Encodage** : certains fichiers (`RDSPD_ProbaCSP_Conso.csv`, `RDSPD_IncomeIndex.csv`,
-> `RDSPD_ProbaHousing_Conso.csv`) sont encodés en **cp1252**. La lecture est robuste
-> (UTF-8 puis cp1252/latin-1) afin que les libellés accentués (ex. « Indépendants »,
-> « Propriétaire ») soient corrects — ils sont comparés en littéral par le scorecard PD.
-
-Le répertoire d'entrée peut être changé avec `--inputs-dir`.
-
----
-
-## 4. Exécution
-
-```bash
-# Run complet : 50 000 contrats, snapshots 2006→2023 (quelques minutes)
-rdspd-simulate
-
-# Run rapide (smoke test) : N réduit, plage de dates courte
+pip install -e ".[dev]"
 rdspd-simulate --smoke
-
-# Run personnalisé
-rdspd-simulate --n-contracts 5000 --end 2010-12-31 --seed 7 --rho 0.05
 ```
 
-Options principales :
+That's it — the model parameters ship with the repository, so the simulation runs immediately.
 
-| Option | Défaut | Description |
-|--------|--------|-------------|
-| `--smoke` | — | Preset réduit (2 000 contrats, 2006→2007) |
-| `--version` | `PD02R50k0623TTC` | Identifiant du run (= nom du dossier de sortie) |
-| `--n-contracts` | `50000` | Taille du portefeuille |
-| `--start` / `--end` | `2006-01-31` / `2023-12-31` | Plage de snapshots (fins de mois) |
-| `--rho` | `0.05` | Autocorrélation des actifs (impact sur P0) |
-| `--seed` | `42` | Graine aléatoire globale (reproductibilité) |
-| `--inputs-dir` / `--outputs-dir` | `inputs/...` / `outputs/` | Répertoires d'E/S |
-| `--scorecard-pd` / `--scorecard-rvv` | `PD02R3120` / `RVV00R0030` | Scorecards utilisées |
-| `--exportformat` | `parquet` | Format des exports finaux (`RDSPD_Full`, `RDSPD_Perf_Dec`) : `parquet` ou `csv` |
-| `--no-clean` | — | Ne pas purger `outputs/<version>/` avant le run (conserve les fichiers existants) |
+```
+======================================================================
+  Temps d'execution par etape
+======================================================================
+  Octroi des contrats              355 ms  (  7.8 %)
+  Grilles de score                 467 ms  ( 10.2 %)
+  Initialisation                    71 ms  (  1.6 %)
+  Simulation mensuelle             2.47 s  ( 64.5 %)
+  Consolidation                    387 ms  (  8.5 %)
+  Controles de validation          174 ms  (  3.8 %)
+  Exports finaux                    86 ms  (  1.9 %)
+  Nettoyage des pickles              5 ms  (  0.1 %)
+  TOTAL                            3.83 s  (100.0 %)
+```
 
-### Appel programmatique (futur usage API)
+Run the full portfolio (50 000 contracts, 2006 → 2023) with `rdspd-simulate`.
+
+---
+
+## What the simulation does
+
+| Stage | Description | Main output |
+|------|-------------|-------------|
+| **Origination** | Generates correlated, non-normal borrower attributes (Pearson distribution system), assigns vintages, de-standardises, draws categorical variables (occupation, housing, marital status, seniority) and dates. | `00_Granting.csv` |
+| **Macro factors** | Loads unemployment rates and durations, inflation, income indices per occupation, revolving interest rates, and an aggregate macro factor. | — |
+| **Scorecards** | Builds the revolving (RVV) and default (PD) score grids from the Cartesian product of risk-driver modalities; optimises the decomposition `PDt = P0 × P1 × P2`. | `ScoreGrid_RVV.csv`, `ScoreGrid_PD.csv` |
+| **Monthly simulation** | 216 monthly snapshots: risk-driver updates, drawdown draws, arrears and defaults conditional on P0/P1/P2 and asset correlation ρ, repayment schedule, closure. | monthly snapshots |
+| **Consolidation & controls** | Concatenates snapshots, computes the 12-month default flag, runs the validation controls. | `controls/` |
+| **Exports** | Full dataset and the performing December snapshot. | `RDSPD_Full_<version>.parquet`, `RDSPD_Perf_Dec_<version>.parquet` |
+
+### Modelling in brief
+
+Default is modelled as **three consecutive months of arrears**. Each month, the probability of
+falling into (or staying in) arrears is drawn from the scorecard-implied `P0`, `P1`, `P2`
+(first, second, third consecutive month). The one-factor **asset correlation** parameter `ρ`
+couples `P0` to the aggregate macro factor, so defaults cluster in downturns.
+
+---
+
+## Usage
+
+```bash
+rdspd-simulate                                        # full run
+rdspd-simulate --smoke                                # reduced run (fast)
+rdspd-simulate --n-contracts 5000 --end 2010-12-31    # custom
+rdspd-simulate --exportformat csv                     # CSV instead of Parquet
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--smoke` | — | Reduced preset (2 000 contracts, 2006 → 2007) |
+| `--version` | `PD02R50k0623TTC` | Run identifier (= output folder name) |
+| `--n-contracts` | `50000` | Portfolio size |
+| `--start` / `--end` | `2006-01-31` / `2023-12-31` | Snapshot range (month ends) |
+| `--rho` | `0.05` | Asset correlation (impact on `P0`) |
+| `--seed` | `42` | Global random seed (reproducibility) |
+| `--exportformat` | `parquet` | Final export format: `parquet` or `csv` |
+| `--inputs-dir` / `--outputs-dir` | `inputs/parameters` / `outputs/` | I/O directories |
+| `--scorecard-pd` / `--scorecard-rvv` | `PD02R3120` / `RVV00R0030` | Scorecards used |
+| `--no-clean` | — | Do not purge `outputs/<version>/` before the run |
+
+### Programmatic use (API-ready)
 
 ```python
 from rdspd_core.config import SimulationConfig
@@ -110,112 +121,101 @@ result = run(SimulationConfig(n_contracts=5000, end="2010-12-31"))
 print(result.full_path, result.n_rows_full, result.total_seconds)
 ```
 
+`pipeline.run(config)` is the single entry point: no hard-coded paths, no global state beyond
+pandas display options — designed to be wrapped by a web API.
+
 ---
 
-## 5. Sorties
+## Outputs
 
-Toutes les sorties sont **affichées à l'exécution** *et* écrites dans
-`outputs/<version>/`. Ce répertoire est **purgé au début de chaque run** afin que des artefacts
-d'une exécution précédente (ancien format d'export, fichiers qui ne sont plus produits) ne
-cohabitent pas avec les résultats courants ; utiliser `--no-clean` pour conserver l'existant.
+Everything is **printed during execution** *and* written to `outputs/<version>/`, which is
+purged at the start of each run (use `--no-clean` to keep existing files):
 
 ```
 outputs/<version>/
-    00_Granting.csv                      # portefeuille à l'octroi (interne, relu)
-    ScoreGrid_RVV.csv                    # grille de score revolving (interne, relu)
-    ScoreGrid_PD.csv                     # grille de score de défaut (interne, relu)
-    RDSPD_Full_<version>.parquet         # jeu complet final (ou .csv selon --exportformat)
-    RDSPD_Perf_Dec_<version>.parquet     # snapshot performing de décembre (ou .csv)
-    run.log                              # journal d'exécution
-    controls/                            # rapports de contrôle (un CSV par contrôle)
-    controls/timings.csv                 # durée de chaque grande étape
-    snapshots/                           # pickles mensuels (supprimés après consolidation)
+    00_Granting.csv                      # originated portfolio (re-read internally)
+    ScoreGrid_RVV.csv                    # revolving score grid
+    ScoreGrid_PD.csv                     # default score grid
+    RDSPD_Full_<version>.parquet         # full dataset (or .csv)
+    RDSPD_Perf_Dec_<version>.parquet     # performing December snapshot (or .csv)
+    run.log                              # execution log
+    controls/                            # one CSV per validation control
+    controls/timings.csv                 # duration of each stage
 ```
 
-> **Format des exports finaux** : `RDSPD_Full` et `RDSPD_Perf_Dec` sont écrits en **Parquet
-> par défaut** (beaucoup plus rapide à écrire/relire et plus compact) ; passer `--exportformat csv`
-> pour une sortie CSV texte (identique à l'ancien format). Les fichiers intermédiaires
-> (`00_Granting.csv`, grilles de score) restent en CSV car ils sont relus par le pipeline.
-> L'ancien fichier `RDSPD_CompleteMaster&Fac.csv` — qui doublonnait `RDSPD_Full` — n'est plus produit.
+---
 
-Les **contrôles de validation** (écart de covariance, distributions, distributions
-conditionnelles, mapping drivers/score, intervalles de confiance P0-P2 / PDt / PD12)
-sont imprimés sur la console et enregistrés dans `controls/`.
+## Reproducibility & validation
 
-### Suivi du temps d'exécution
-
-Chaque grande étape (octroi, grilles de score, initialisation, simulation mensuelle,
-consolidation, contrôles, exports, archivage) est **chronométrée**. La durée s'affiche
-dans le terminal au fil de l'exécution (`[temps] <étape> : <durée>`), puis un **récapitulatif**
-par étape (avec pourcentages et total) est imprimé à la fin et enregistré dans
-`controls/timings.csv`. Les durées sont aussi accessibles par programme via
-`RunResult.timings` et `RunResult.total_seconds` (utile pour une future API).
+- **Deterministic grids.** `ScoreGrid_PD.csv` (3 750 × 20) and `ScoreGrid_RVV.csv` (32 × 11)
+  are produced by a pure Cartesian product plus a deterministic optimisation. They are checked
+  **bit-for-bit** against the reference files in `inputs/reference/` (see
+  `tests/test_scores_deterministic.py`).
+- **Seeded runs.** With a fixed `--seed`, two runs of the same configuration are identical.
+- **Built-in controls.** Covariance error, variable distributions, age-conditional categorical
+  distributions, risk-driver → score mapping, and 95% confidence intervals on P0/P1/P2, PDt and
+  the 12-month PD. Failures are printed and written to `controls/`.
+- **Encoding.** Several parameter files are cp1252-encoded and the PD scorecard matches accented
+  labels literally (e.g. `Indépendants`). Reading is encoding-robust and covered by a test.
 
 ---
 
-## 6. Reproductibilité
-
-- Le notebook d'origine était **stochastique sans graine globale** : ses sorties variaient
-  à chaque exécution. `rdspd-core` ajoute une **graine globale** (`--seed`) : deux runs avec
-  la même configuration produisent des résultats identiques.
-- Les **grilles de score** (`ScoreGrid_PD.csv`, `ScoreGrid_RVV.csv`) sont **déterministes**
-  (produit cartésien + optimisation déterministe) : elles correspondent aux fichiers de
-  référence. C'est l'ancre de vérification du portage (cf. tests).
-- Les parties **granting** et **simulation** restent stochastiques : à graine fixée elles
-  sont reproductibles, mais ne reproduisent pas bit-à-bit la réalisation particulière du
-  notebook (qui n'avait pas de graine). Les **fichiers, colonnes et contrôles** sont
-  néanmoins identiques et statistiquement équivalents.
-
----
-
-## 7. Tests
-
-```bash
-pytest                              # tous les tests
-pytest tests/test_scores_deterministic.py   # grilles == références
-```
-
-- `test_scores_deterministic.py` : les grilles RVV/PD générées correspondent aux références.
-- `test_encoding.py` : les libellés accentués (CSP, habitat) sont correctement décodés.
-- `test_smoke_pipeline.py` : run réduit de bout-en-bout, vérification des exports.
-
----
-
-## 8. Architecture
+## Architecture
 
 ```
 src/rdspd_core/
-    config.py        # SimulationConfig : toute la paramétrisation
-    io_utils.py      # lecture CSV robuste (encodage), écriture
-    reporting.py     # Reporter : affichage console + écriture fichiers
-    randnonnormal/   # générateur IG (système de Pearson) vendorisé
-    granting.py      # octroi des contrats
-    macro.py         # facteurs macro-économiques
-    risk_drivers.py  # mise à jour des drivers de risque
-    scores.py        # grilles de score RVV/PD + application
-    snapshots.py     # cycle de vie contrats/facilités + pickles
-    simulation.py    # boucle mensuelle
-    controls.py      # contrôles de validation
-    pipeline.py      # orchestration bout-en-bout (point d'entrée API)
-    cli.py           # interface ligne de commande
+    config.py        # SimulationConfig: all parameters, no hard-coded paths
+    io_utils.py      # encoding-robust CSV reading, Parquet/CSV export
+    reporting.py     # console output + files + per-stage timing
+    randnonnormal/   # vendored non-normal generator (Pearson system)
+    granting.py      # contract origination
+    macro.py         # macro-economic factors
+    risk_drivers.py  # monthly risk-driver updates
+    scores.py        # RVV/PD grids + score application
+    snapshots.py     # contract/facility lifecycle
+    simulation.py    # monthly loop
+    controls.py      # validation controls
+    pipeline.py      # end-to-end orchestration (API entry point)
+    cli.py           # command-line interface
 ```
+
+Inputs live in `inputs/parameters/` (model calibration, versioned) and `inputs/reference/`
+(reference grids used by the tests).
 
 ---
 
-## 9. Notes & limites
+## Tests
 
-- **Performance** : le run complet (50 000 contrats × 216 mois) prend quelques minutes,
-  dominé par la boucle mensuelle. Optimisations byte-à-byte neutres déjà en place : octroi
-  vectorisé (~×17), boucle allégée (merges → lookups, suppression de relectures pickle),
-  contrôle PD12 vectorisé (~×46), stockage des chaînes en `object` plutôt qu'Arrow
-  (`future.infer_string=False`, ~25 % sur la boucle avec pandas ≥ 3.0), exports finaux en
-  Parquet (~×9 en écriture) et suppression des exports redondants. Chaque
-  grande étape est chronométrée (cf. §5). Utiliser `--smoke` ou réduire `--n-contracts` /
-  la plage de dates pour des essais rapides.
-- **Fidélité** : la logique métier et l'ordre des tirages aléatoires sont préservés à
-  l'identique du notebook ; toutes les optimisations de vitesse ont été **vérifiées
-  byte-à-byte** (mêmes exports). Les autres améliorations sans effet sur les résultats :
-  suppression d'effets de bord, lecture d'encodage, ordre déterministe des classes d'âge,
-  noms de pickles compatibles Windows.
-- **API / Frontend** : hors périmètre de ce dépôt. La fonction `pipeline.run(config)` est le
-  point d'entrée prévu pour une future couche API.
+```bash
+pytest
+```
+
+- `test_scores_deterministic.py` — generated grids match the reference bit-for-bit.
+- `test_encoding.py` — accented labels decode correctly.
+- `test_smoke_pipeline.py` — end-to-end reduced run, export formats, output cleaning,
+  reproducibility.
+
+---
+
+## Performance
+
+The pipeline is vectorised throughout; every optimisation was validated **byte-for-byte**
+against reference outputs before being merged:
+
+- vectorised origination (~17×),
+- lighter monthly loop (merges → lookups, no pickle re-reads),
+- vectorised 12-month PD control (~46×),
+- `object` rather than Arrow string storage (`future.infer_string=False`, ~25% on the loop with
+  pandas ≥ 3.0),
+- Parquet exports (~9× faster to write than CSV) and removal of redundant exports.
+
+Each stage is timed, so regressions are visible immediately (`controls/timings.csv`).
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+This package vendors a third-party non-normal random generator; see [NOTICE](NOTICE) for
+attribution and the modifications made.

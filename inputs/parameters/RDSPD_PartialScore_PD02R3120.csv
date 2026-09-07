@@ -1,0 +1,27 @@
+Var,Mod,PartialScore
+Intercept,,0.15
+rd_Age_AncEmp,40 <= Age < 60,0.00
+rd_Age_AncEmp,Age >= 60. Emp >=5,0.01
+rd_Age_AncEmp,Age < 40. Emp >= 5,0.01
+rd_Age_AncEmp,Age >= 60. Emp < 5,0.04
+rd_Age_AncEmp,Age < 40. Emp < 5,0.09
+rd_DebtRatioW,< .05,0.00
+rd_DebtRatioW,< .1,0.03
+rd_DebtRatioW,< .15,0.08
+rd_DebtRatioW,< .3,0.18
+rd_DebtRatioW,> .3,0.38
+situation_habitat,Propriétaire,0.00
+situation_habitat,Non Propriétaire,0.15
+rd_UsingRate,< 10%,0.00
+rd_UsingRate,< 20%,0.01
+rd_UsingRate,< 30%,0.02
+rd_UsingRate,< 50%,0.05
+rd_UsingRate,> 50%,0.08
+rd_CSP,Cadres. Indépendants,0.00
+rd_CSP,Employés. Professions intermédiaires,0.03
+rd_CSP,Ouvriers. Agriculteurs,0.08
+rd_BankingSen,> 20,0.00
+rd_BankingSen,< 20,0.01
+rd_BankingSen,< 15,0.02
+rd_BankingSen,< 10,0.05
+rd_BankingSen,< 5,0.08

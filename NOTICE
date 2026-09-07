@@ -1,0 +1,24 @@
+rdspd-core — Third-party notices
+================================
+
+This product includes third-party code, redistributed here with the permission of
+its original author.
+
+--------------------------------------------------------------------------------
+RandNonNormal — non-normal random data generator (Pearson distribution system)
+--------------------------------------------------------------------------------
+
+Files:   src/rdspd_core/randnonnormal/generator.py
+Author:  nadahannad (2023)
+Usage:   Vendored into this package as `rdspd_core.randnonnormal`.
+
+Modifications made in this repository (numerically neutral, verified byte-for-byte):
+  * module-level imports (they were repeated inside every function);
+  * French docstrings added;
+  * in the Pearson type IV rejection sampler, `scipy.stats.uniform.rvs()` calls were
+    replaced by `numpy.random.random()` — both draw from the same global NumPy random
+    stream and produce identical values, but the latter avoids SciPy's per-call overhead.
+
+The generator implements the Pearson distribution system. Users redistributing this
+package should satisfy themselves as to the provenance and licensing terms applicable
+to this component in their own context.

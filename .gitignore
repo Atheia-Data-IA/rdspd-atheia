@@ -6,9 +6,12 @@
 *.pkl
 *.pickle
 
-# Donnees d'entree volumineuses (~4.6 Go : CSV de reference, archives de pickles, docs).
-# Les donnees ne sont pas versionnees ; voir le README pour l'arborescence attendue.
-/inputs/
+# Donnees d'entree : seuls les fichiers necessaires au fonctionnement sont versionnes
+# (inputs/parameters : parametrage du modele ; inputs/reference : grilles de reference des tests).
+# Tout autre contenu de inputs/ (jeux de donnees volumineux, documentation interne) est ignore.
+/inputs/*
+!/inputs/parameters/
+!/inputs/reference/
 
 # Python
 __pycache__/

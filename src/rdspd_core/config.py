@@ -15,9 +15,9 @@ import shutil
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-# Sous-dossier de ``inputs/`` reproduisant l'arborescence du Google Drive d'origine.
-# Le notebook lisait ses entrees dans ``.../My Drive/01_Sujets_Internes/00_RDS_PD/Google_Sheets/``.
-DEFAULT_INPUT_SUBDIR = Path("01_Sujets_Internes") / "00_RDS_PD" / "Google_Sheets"
+# Sous-dossier de ``inputs/`` contenant les fichiers de parametrage du modele
+# (matrice de covariance, quantiles, cohortes, series macro-economiques, scorecards).
+DEFAULT_INPUT_SUBDIR = Path("parameters")
 
 
 @dataclass

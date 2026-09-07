@@ -1,9 +1,0 @@
-Tu trouveras en pj un Notebook avec les sorties associées.
-Je souhaite que tu l'analyses en détail et que tu refactores le code en python propre (pyproject, readme détaillé, git etc.).
-
-A l'execution, le code doit produire les mêmes sorties que le notebook.
-Les sorties doivent être printées lors de l'execution mais également figurer dans le dossier outputs ainsi que les exports.
-
-Plus tard, mais pas maintenant, ce code pourra être appelé par des appels API (Fastapi) car nous développerons en parallèle un frontend. Néanmoins, la partie API ne doit pas être développée ici.
-
-Les fichiers inputs se trouvent dans le dossier inputs (et ,non dans un google Drive comme dans le Notebook).

@@ -1,0 +1,12 @@
+Var,Mod,PartialScore
+Intercept,,0.20
+dec_flag,0,0.00
+dec_flag,1,0.10
+dispo_ratio_bin,< 0.2,0.00
+dispo_ratio_bin,0.2 - 0.5,0.05
+dispo_ratio_bin,0.5 - 0.8,0.15
+dispo_ratio_bin,> 0.8,0.35
+draw_senior_bin,> 36,0.00
+draw_senior_bin,24 - 36,0.05
+draw_senior_bin,12 - 24,0.15
+draw_senior_bin,< 12,0.35

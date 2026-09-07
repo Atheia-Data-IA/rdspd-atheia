@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-INPUTS_DIR = PROJECT_ROOT / "inputs" / "01_Sujets_Internes" / "00_RDS_PD" / "Google_Sheets"
-REFERENCE_DIR = PROJECT_ROOT / "inputs" / "01_Sujets_Internes" / "00_RDS_PD" / "Data" / "PD02R50k0623TTC"
+INPUTS_DIR = PROJECT_ROOT / "inputs" / "parameters"
+REFERENCE_DIR = PROJECT_ROOT / "inputs" / "reference"
 
 
 @pytest.fixture(autouse=True)
