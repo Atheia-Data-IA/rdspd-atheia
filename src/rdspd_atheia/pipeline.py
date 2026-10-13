@@ -33,6 +33,13 @@ PERF_DEC_COLUMNS = [
     "Principal", "Charges_ajuste", "Revenu_ajuste", "ScorePD", "ScoreRVV", "Default12m",
 ]
 
+# Colonnes de l'apercu console du jeu consolide : le tableau complet compte une centaine de
+# colonnes, illisibles dans un terminal. L'export CSV du controle reste integral.
+MASTER_FAC_PREVIEW_COLUMNS = [
+    "Contract_ID", "Facility_ID", "Date", "Master", "Drawing",
+    "Outstanding", "Retard", "Defaut", "PDt", "Default12m",
+]
+
 
 @dataclass
 class RunResult:
@@ -129,7 +136,12 @@ def run(cfg: SimulationConfig | None = None) -> RunResult:
             data["Default12m"] = np.where(
                 (data.Date < data.Default_dt) & (data.Date + pd.DateOffset(months=12) >= data.Default_dt), 1, 0
             )
-            reporter.show_df(data.head(5), "complete_master_fac_head", title="Apercu master & facilites :")
+            reporter.show_df(
+                data.head(5),
+                "complete_master_fac_head",
+                title="Apercu master & facilites :",
+                preview_cols=MASTER_FAC_PREVIEW_COLUMNS,
+            )
 
         # 6) Controles post-simulation (grille relue depuis le CSV)
         with reporter.timed("Controles de validation"):

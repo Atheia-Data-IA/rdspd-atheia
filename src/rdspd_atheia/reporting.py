@@ -13,6 +13,7 @@ ce qui satisfait l'exigence « ... mais figurer egalement dans le dossier output
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -116,6 +117,7 @@ class Reporter:
         name: str,
         title: str | None = None,
         save: bool = True,
+        preview_cols: Sequence[str] | None = None,
     ) -> None:
         """Affiche un tableau et, optionnellement, l'enregistre en CSV dans ``controls/``.
 
@@ -129,10 +131,26 @@ class Reporter:
             Titre facultatif affiche avant le tableau.
         save:
             Si vrai, ecrit le tableau en CSV.
+        preview_cols:
+            Sous-ensemble de colonnes a afficher sur la console : un tableau de plusieurs
+            dizaines de colonnes est illisible dans un terminal (lignes repliees). N'affecte
+            que l'affichage -- le CSV ecrit dans ``controls/`` conserve toutes les colonnes.
         """
         if title:
             self.log(title)
-        self.log(df.to_string())
+
+        shown = df
+        n_total = df.shape[1] if isinstance(df, pd.DataFrame) else 1
+        if preview_cols is not None and isinstance(df, pd.DataFrame):
+            kept = [c for c in preview_cols if c in df.columns]
+            if kept and len(kept) < n_total:
+                shown = df[kept]
+
+        self.log(shown.to_string())
+        if shown is not df:
+            detail = f" - tableau complet : controls/{name}.csv" if save else ""
+            self.log(f"  (apercu : {shown.shape[1]} des {n_total} colonnes{detail})")
+
         if save:
             out = self.controls_dir / f"{name}.csv"
             frame = df.to_frame() if isinstance(df, pd.Series) else df

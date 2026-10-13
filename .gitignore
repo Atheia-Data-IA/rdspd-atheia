@@ -12,6 +12,7 @@
 /inputs/*
 !/inputs/parameters/
 !/inputs/reference/
+!/inputs/README.md
 
 # Python
 __pycache__/

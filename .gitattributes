@@ -10,3 +10,6 @@
 # reference a une comparaison bit-a-bit dans les tests : aucune conversion de fin de
 # ligne ne doit leur etre appliquee.
 inputs/** -text
+
+# Exception : la documentation du dossier est du texte, pas une donnee d'entree.
+inputs/**/*.md text eol=lf

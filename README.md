@@ -95,6 +95,7 @@ couples `P0` to the aggregate macro factor, so defaults cluster in downturns.
 rdspd-simulate                                        # full run
 rdspd-simulate --smoke                                # reduced run (fast)
 rdspd-simulate --n-contracts 5000 --end 2010-12-31    # custom
+rdspd-simulate --seed 7                               # draw a different portfolio
 rdspd-simulate --exportformat csv                     # CSV instead of Parquet
 ```
 
@@ -105,11 +106,14 @@ rdspd-simulate --exportformat csv                     # CSV instead of Parquet
 | `--n-contracts` | `50000` | Portfolio size |
 | `--start` / `--end` | `2006-01-31` / `2023-12-31` | Snapshot range (month ends) |
 | `--rho` | `0.05` | Asset correlation (impact on `P0`) |
-| `--seed` | `42` | Global random seed (reproducibility) |
+| `--seed` | `42` | Global random seed — same seed, same portfolio |
 | `--exportformat` | `parquet` | Final export format: `parquet` or `csv` |
 | `--inputs-dir` / `--outputs-dir` | `inputs/parameters` / `outputs/` | I/O directories |
 | `--scorecard-pd` / `--scorecard-rvv` | `PD02R3120` / `RVV00R0030` | Scorecards used |
 | `--no-clean` | — | Do not purge `outputs/<version>/` before the run |
+
+Every run is seeded: with the default `--seed 42`, `rdspd-simulate` always produces **exactly
+the same portfolio**. Pass a different `--seed` to draw another one.
 
 ### Programmatic use (API-ready)
 
@@ -117,9 +121,26 @@ rdspd-simulate --exportformat csv                     # CSV instead of Parquet
 from rdspd_atheia.config import SimulationConfig
 from rdspd_atheia.pipeline import run
 
-result = run(SimulationConfig(n_contracts=5000, end="2010-12-31"))
+cfg = SimulationConfig(
+    n_contracts=5000,
+    end="2010-12-31",
+    seed=42,                                      # default; same seed -> same portfolio
+    inputs_dir="rdspd-atheia/inputs/parameters",  # model calibration files
+    outputs_dir="rdspd-atheia/outputs",           # where artefacts are written
+)
+result = run(cfg)
 print(result.full_path, result.n_rows_full, result.total_seconds)
 ```
+
+Both directories are **optional when the script runs from inside the cloned repository**: they
+default to `<cwd>/inputs/parameters` and `<cwd>/outputs`. From anywhere else, point them at the
+clone — or set `project_root` once, which resolves both:
+
+```python
+run(SimulationConfig(project_root="rdspd-atheia", n_contracts=5000))
+```
+
+Beware of setting `inputs_dir` alone: outputs would still be written to `<cwd>/outputs`.
 
 `pipeline.run(config)` is the single entry point: no hard-coded paths, no global state beyond
 pandas display options — designed to be wrapped by a web API.
@@ -145,6 +166,22 @@ outputs/<version>/
 
 ---
 
+## Input data
+
+All model calibration lives in `inputs/parameters/` — 17 small CSV files versioned with the
+repository: the origination correlation matrix and quantiles, categorical distributions by age
+class (occupation, housing, household, employment seniority), macro-economic series
+(unemployment, inflation, income indices, revolving rates, aggregate factor), and the
+scorecards.
+
+**[`inputs/README.md`](inputs/README.md) documents every file and the rules to follow when
+editing them** — row probabilities must sum to 1, accented labels are cp1252-encoded and matched
+literally by the PD scorecard, and date formats differ from one file to another.
+
+`inputs/reference/` holds the reference score grids used by the tests.
+
+---
+
 ## Reproducibility & validation
 
 - **Deterministic grids.** `ScoreGrid_PD.csv` (3 750 × 20) and `ScoreGrid_RVV.csv` (32 × 11)
@@ -152,6 +189,7 @@ outputs/<version>/
   **bit-for-bit** against the reference files in `inputs/reference/` (see
   `tests/test_scores_deterministic.py`).
 - **Seeded runs.** With a fixed `--seed`, two runs of the same configuration are identical.
+  The seed defaults to `42`, so repeated runs are identical unless you change it.
 - **Built-in controls.** Covariance error, variable distributions, age-conditional categorical
   distributions, risk-driver → score mapping, and 95% confidence intervals on P0/P1/P2, PDt and
   the 12-month PD. Failures are printed and written to `controls/`.
@@ -179,8 +217,9 @@ src/rdspd_atheia/
     cli.py           # command-line interface
 ```
 
-Inputs live in `inputs/parameters/` (model calibration, versioned) and `inputs/reference/`
-(reference grids used by the tests).
+Inputs live in `inputs/parameters/` (model calibration, versioned — see
+[`inputs/README.md`](inputs/README.md)) and `inputs/reference/` (reference grids used by the
+tests).
 
 ---
 
